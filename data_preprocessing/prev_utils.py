@@ -18,11 +18,10 @@ def ordenar_columnas_prev(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]
 
     # Orden predefinido de columnas principales
     main_columns = ([
-        'ID',
+        'Código',
         'Fecha',
         'Mes',
         'Sede',
-        'Código',
         'Área',
         'Subárea', 
         'Técnicos',
@@ -34,12 +33,11 @@ def ordenar_columnas_prev(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]
 
     # Orden predefinido de columnas principales
     all_columns = ([
-        'ID',
+        'Código',
         'Fecha',
         'Fecha pandas',
         'Mes',
         'Sede',
-        'Código',
         'Área',
         'Subárea', 
         'Técnicos',

@@ -9,6 +9,7 @@ from docx.shared import Pt # <- para tamaño de fuente
 from docxtpl import Subdoc
 import os
 import glob
+from io import BytesIO
 
 class InformeHospitalGenerator:
     def __init__(self, template_path):
@@ -201,8 +202,17 @@ class InformeHospitalGenerator:
             self.context[nombre_marcador_plot] = f"[Error generando gráfico: {e}]"
             self.context[nombre_marcador_tabla] = {'headers': [], 'rows': []}
     
-    def generar_informe(self, output_path):
-        """Renderiza la plantilla con todos los datos y guarda el documento"""
+    def generar_informe(self, output_path=None, return_buffer=False):
+        """
+        Renderiza la plantilla con todos los datos y guarda el documento
+        
+        Args:
+            output_path: Ruta donde guardar el archivo (opcional si return_buffer=True)
+            return_buffer: Si True, retorna BytesIO buffer en lugar de guardar archivo
+            
+        Returns:
+            BytesIO buffer si return_buffer=True, None en caso contrario
+        """
         try:
             # Debug: mostrar las variables del contexto
             print("🔍 Variables en el contexto:")
@@ -215,23 +225,52 @@ class InformeHospitalGenerator:
             # Renderizar todos los marcadores con los datos del context
             self.doc.render(self.context)
             
-            # Guardar documento
-            self.doc.save(output_path)
-            print(f"✅ Informe generado exitosamente: {output_path}")
+            if return_buffer:
+                # Guardar en buffer BytesIO para Streamlit
+                buffer = BytesIO()
+                self.doc.save(buffer)
+                buffer.seek(0)
+                print(f"✅ Informe generado exitosamente en buffer")
+                
+                # Limpiar archivos temporales después de guardar
+                self._cleanup_temp_files()
+                
+                return buffer
+            else:
+                # Guardar documento en archivo
+                self.doc.save(output_path)
+                print(f"✅ Informe generado exitosamente: {output_path}")
+                
+                # Limpiar archivos temporales después de guardar
+                self._cleanup_temp_files()
+                
+                return None
             
         except Exception as e:
             print(f"❌ Error al generar informe: {e}")
             print("💡 Revisa la sintaxis de los marcadores en tu plantilla Word")
             print("   Los marcadores deben tener formato: {{nombre_variable}}")
+            
+            # Limpiar archivos temporales incluso si hay error
+            self._cleanup_temp_files()
+            
             raise e
-        finally:
-            # Limpiar archivos temporales
-
-            # Limpiar imágenes temporales
-            for temp_file in glob.glob('temp_*.png'):
+    
+    def _cleanup_temp_files(self):
+        """
+        Limpia archivos temporales creados durante la generación del informe
+        """
+        # Limpiar imágenes temporales
+        for temp_file in glob.glob('temp_*.png'):
+            try:
                 os.remove(temp_file)
-            # Limpiar tablas temporales
-            for temp_file in glob.glob('temp_tabla_*.docx'):
+            except:
+                pass
+        # Limpiar tablas temporales
+        for temp_file in glob.glob('temp_tabla_*.docx'):
+            try:
                 os.remove(temp_file)
+            except:
+                pass
     
     

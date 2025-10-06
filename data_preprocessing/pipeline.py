@@ -22,8 +22,44 @@ def leer_data(API_URL: str) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Un DataFrame que contiene los datos leídos desde la API.
     """
-    data = pd.read_csv(API_URL, sep=";", low_memory=False)
-    return data
+    try:
+        # First try with default SSL verification and proper encoding
+        data = pd.read_csv(API_URL, sep=";", low_memory=False, encoding='utf-8')
+        return data
+    except Exception as e:
+        if "CERTIFICATE_VERIFY_FAILED" in str(e) or "SSL" in str(e):
+            # Try with requests and custom SSL handling for KoBoToolbox
+            import requests
+            import ssl
+            from io import StringIO
+            
+            try:
+                # Create SSL context that's more permissive for KoBoToolbox
+                import urllib3
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+                
+                # Use requests with SSL verification disabled (only for KoBoToolbox)
+                response = requests.get(API_URL, verify=False, timeout=30)
+                response.raise_for_status()
+                
+                # Try different encodings
+                encodings = ['utf-8', 'latin-1', 'iso-8859-1']
+                for encoding in encodings:
+                    try:
+                        response.encoding = encoding
+                        data = pd.read_csv(StringIO(response.text), sep=";", low_memory=False)
+                        return data
+                    except:
+                        continue
+                
+                # If all encodings fail, use the raw text
+                data = pd.read_csv(StringIO(response.text), sep=";", low_memory=False)
+                return data
+                
+            except Exception as req_error:
+                raise Exception(f"Failed to load data from {API_URL}. SSL Error: {str(e)}. Requests Error: {str(req_error)}")
+        else:
+            raise Exception(f"Failed to load data from {API_URL}: {str(e)}")
 
 
 def agregar_acompanante(df: pd.DataFrame) -> pd.DataFrame:
@@ -59,7 +95,7 @@ def agregar_observaciones(df: pd.DataFrame) -> pd.DataFrame:
 
 def renombrar_id(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Renombrar la columna 'ID' a 'Código'.
+    Renombrar la columna '_index' a 'ID'.
 
     Args:
         df (pd.DataFrame): El DataFrame original.
@@ -160,7 +196,7 @@ def procesar_preventivos(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     df = agregar_acompanante(df)
     # Renombrar columna 'OBSERVACIONES' a 'Observaciones'
     df = agregar_observaciones(df)
-    # Renombrar columna 'ID' a 'Código'
+    # Renombrar columna '_index' a 'ID'
     df = renombrar_id(df)
 
     # ordenar columnas
@@ -228,7 +264,7 @@ def procesar_lamparas(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
                                 empty_value = 'Sin evidencia')
 
     # Otras columnas
-    # Renombrar columna 'ID' a 'Código'
+    # Renombrar columna '_index' a 'ID'
     df = renombrar_id(df)
     # Renombrar columna 'Observaciones' a 'Observaciones'
     df = agregar_observaciones(df)
@@ -300,7 +336,7 @@ def procesar_roedores(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
                                  empty_value = '')
 
     # Otras columnas
-    # Renombrar columna 'ID' a 'Código'
+    # Renombrar columna '_index' a 'ID'
     df = renombrar_id(df)
     # Renombrar columna 'Observaciones' a 'Observaciones'
     df = agregar_observaciones(df)
