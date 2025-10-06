@@ -52,7 +52,7 @@ if __name__ == "__main__":
     )
 
 
-
+    # Medellín
     # Preventivos
     informe.agregar_resultado_completo(generate_order_area_plot, 
                                        df_prev_med_full,
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
 
     # Rionegro
-        # Preventivos
+    # Preventivos
     informe.agregar_resultado_completo(generate_order_area_plot, 
                                        df_prev_rionegro_full,
                                         'rio_preventivos_1_plot',
