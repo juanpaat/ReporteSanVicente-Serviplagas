@@ -42,7 +42,6 @@ df_lamp_rionegro_full = df_lamp_rionegro_full[df_lamp_rionegro_full['Mes'] != me
 
 
 
-
 # Example usage
 if __name__ == "__main__":
 

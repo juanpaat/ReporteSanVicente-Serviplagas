@@ -1,6 +1,12 @@
 from typing import Tuple
 import pandas as pd
 import config as cfg
+import ssl
+import urllib.request
+import warnings
+
+# Suppress the pkg_resources deprecation warning from docxcompose
+warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*", category=UserWarning)
 
 from .date_utils import agregar_nueva_fecha, columna_mes
 from .general_utils import (agregar_ceros_a_columnas,
@@ -22,6 +28,15 @@ def leer_data(API_URL: str) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Un DataFrame que contiene los datos leídos desde la API.
     """
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+    
+    # Install the custom SSL context
+    https_handler = urllib.request.HTTPSHandler(context=ssl_context)
+    opener = urllib.request.build_opener(https_handler)
+    urllib.request.install_opener(opener)
+
     data = pd.read_csv(API_URL, sep=";", low_memory=False)
     return data
 
@@ -59,7 +74,7 @@ def agregar_observaciones(df: pd.DataFrame) -> pd.DataFrame:
 
 def renombrar_id(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Renombrar la columna 'ID' a 'Código'.
+    Renombrar la columna '_index' a 'ID'.
 
     Args:
         df (pd.DataFrame): El DataFrame original.
@@ -70,14 +85,6 @@ def renombrar_id(df: pd.DataFrame) -> pd.DataFrame:
     if '_index' in df.columns:
         df.rename(columns={'_index': 'ID'}, inplace=True)
     return df
-
-
-
-
-
-
-
-
 
 
 
@@ -160,7 +167,7 @@ def procesar_preventivos(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     df = agregar_acompanante(df)
     # Renombrar columna 'OBSERVACIONES' a 'Observaciones'
     df = agregar_observaciones(df)
-    # Renombrar columna 'ID' a 'Código'
+    # Renombrar columna '_index' a 'ID'
     df = renombrar_id(df)
 
     # ordenar columnas
@@ -228,7 +235,7 @@ def procesar_lamparas(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
                                 empty_value = 'Sin evidencia')
 
     # Otras columnas
-    # Renombrar columna 'ID' a 'Código'
+    # Renombrar columna '_index' a 'ID'
     df = renombrar_id(df)
     # Renombrar columna 'Observaciones' a 'Observaciones'
     df = agregar_observaciones(df)
@@ -300,7 +307,7 @@ def procesar_roedores(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
                                  empty_value = '')
 
     # Otras columnas
-    # Renombrar columna 'ID' a 'Código'
+    # Renombrar columna '_index' a 'ID'
     df = renombrar_id(df)
     # Renombrar columna 'Observaciones' a 'Observaciones'
     df = agregar_observaciones(df)
