@@ -1,5 +1,5 @@
 """
-Report generation functions for the Streamlit app and main script
+Funciones de generación de reportes para la aplicación Streamlit y script principal
 """
 
 import os
@@ -8,44 +8,44 @@ from dotenv import load_dotenv
 from io import BytesIO
 from datetime import datetime
 
-# Data processing imports
+# Importaciones de procesamiento de datos
 from data_preprocessing.pipeline import leer_data, procesar_preventivos, procesar_lamparas, procesar_roedores
 import ssl
 import urllib3
 
-# Visualization imports
+# Importaciones de visualización
 from data_visualization.preventivos import generate_order_area_plot, generate_plagas_timeseries_facet, generate_total_plagas_trend_plot
 from data_visualization.roedores import generate_roedores_station_status_plot, plot_tendencia_eliminacion_mensual
 from data_visualization.lamparas import plot_estado_lamparas_por_mes, plot_estado_lamparas_con_leyenda, plot_capturas_especies_por_mes, plot_tendencia_total_capturas
 
-# Report engine
+# Motor de reportes
 from Engine.engine import InformeHospitalGenerator
 
-# Load environment variables
+# Cargar variables de entorno
 load_dotenv()
 
 
 def load_api_data():
     """
-    Load data from all three APIs
+    Cargar datos de las tres APIs
     
     Returns:
         tuple: (prev_data, roed_data, lamp_data)
     """
     try:
-        # For local development, always use environment variables
-        # Only use Streamlit secrets in cloud deployment
+        # Para desarrollo local, siempre usar variables de entorno
+        # Solo usar secretos de Streamlit en despliegue en la nube
         prev_api = os.getenv("prev_API")
         roe_api = os.getenv("roe_API") 
         lam_api = os.getenv("lam_API")
         
-        # If env vars are not set, try Streamlit secrets (only in cloud)
+        # Si las variables de entorno no están configuradas, intentar secretos de Streamlit (solo en la nube)
         if not (prev_api and roe_api and lam_api):
             try:
-                # Check if we're in a Streamlit Cloud environment
+                # Verificar si estamos en un entorno Streamlit Cloud
                 import streamlit as st
                 
-                # Only try secrets if we're in cloud or if a secrets file actually exists
+                # Solo intentar secretos si estamos en la nube o si realmente existe un archivo de secretos
                 secrets_path = os.path.join(os.getcwd(), '.streamlit', 'secrets.toml')
                 global_secrets_path = os.path.expanduser('~/.streamlit/secrets.toml')
                 
@@ -59,68 +59,68 @@ def load_api_data():
                     lam_api = lam_api or st.secrets.get("lam_API")
                     
             except (ImportError, Exception):
-                # Streamlit not available, secrets failed, or no secrets file
-                # This is normal for local development
+                # Streamlit no disponible, secretos fallaron, o no hay archivo de secretos
+                # Esto es normal para desarrollo local
                 pass
         
-        # Validate that we have all required APIs
+        # Validar que tengamos todas las APIs requeridas
         if not prev_api:
-            raise ValueError("prev_API not found in environment variables or Streamlit secrets")
+            raise ValueError("prev_API no encontrada en variables de entorno o secretos de Streamlit")
         if not roe_api:
-            raise ValueError("roe_API not found in environment variables or Streamlit secrets")
+            raise ValueError("roe_API no encontrada en variables de entorno o secretos de Streamlit")
         if not lam_api:
-            raise ValueError("lam_API not found in environment variables or Streamlit secrets")
+            raise ValueError("lam_API no encontrada en variables de entorno o secretos de Streamlit")
         
-        # Load data from APIs with SSL handling
+        # Cargar datos de APIs con manejo de SSL
         try:
             prev_data = leer_data(prev_api)
             roed_data = leer_data(roe_api)
             lamp_data = leer_data(lam_api)
         except ssl.SSLError as e:
-            # Handle SSL certificate issues common on macOS
+            # Manejar problemas de certificados SSL comunes en macOS
             if "CERTIFICATE_VERIFY_FAILED" in str(e):
                 raise Exception(
-                    "SSL Certificate verification failed. This is common on macOS. "
-                    "Try running: '/Applications/Python 3.x/Install Certificates.command' "
-                    "or install certificates using: 'pip install --upgrade certifi'"
+                    "Falló la verificación del certificado SSL. Esto es común en macOS. "
+                    "Intenta ejecutar: '/Applications/Python 3.x/Install Certificates.command' "
+                    "o instalar certificados usando: 'pip install --upgrade certifi'"
                 )
             else:
-                raise Exception(f"SSL Error connecting to APIs: {str(e)}")
+                raise Exception(f"Error SSL conectando a APIs: {str(e)}")
         except Exception as api_error:
-            raise Exception(f"Error connecting to APIs: {str(api_error)}")
+            raise Exception(f"Error conectando a APIs: {str(api_error)}")
         
         return prev_data, roed_data, lamp_data
         
     except Exception as e:
-        raise Exception(f"Error loading API data: {str(e)}")
+        raise Exception(f"Error cargando datos de API: {str(e)}")
 
 
 def process_location_data(prev_data, roed_data, lamp_data, location, mes_excluir):
     """
-    Process data for a specific location
+    Procesar datos para una ubicación específica
     
     Args:
-        prev_data: Raw preventivos data
-        roed_data: Raw roedores data  
-        lamp_data: Raw lamparas data
-        location: 'Medellín' or 'Rionegro'
-        mes_excluir: Month to exclude from analysis
+        prev_data: Datos crudos de preventivos
+        roed_data: Datos crudos de roedores  
+        lamp_data: Datos crudos de lámparas
+        location: 'Medellín' o 'Rionegro'
+        mes_excluir: Mes a excluir del análisis
         
     Returns:
         tuple: (df_prev_full, df_roed_full, df_lamp_full)
     """
     try:
-        # Filter data by location
+        # Filtrar datos por ubicación
         prev_location = prev_data[prev_data['Sede'] == location]
         roed_location = roed_data[roed_data['Sede'] == location]
         lamp_location = lamp_data[lamp_data['Sede'] == location]
         
-        # Process data
+        # Procesar datos
         _, df_prev_full = procesar_preventivos(prev_location)
         _, df_roed_full = procesar_roedores(roed_location)
         _, df_lamp_full = procesar_lamparas(lamp_location)
         
-        # Exclude specified month
+        # Excluir mes especificado
         if mes_excluir:
             df_prev_full = df_prev_full[df_prev_full['Mes'] != mes_excluir]
             df_roed_full = df_roed_full[df_roed_full['Mes'] != mes_excluir]
@@ -129,22 +129,22 @@ def process_location_data(prev_data, roed_data, lamp_data, location, mes_excluir
         return df_prev_full, df_roed_full, df_lamp_full
     
     except Exception as e:
-        raise Exception(f"Error processing data for {location}: {str(e)}")
+        raise Exception(f"Error procesando datos para {location}: {str(e)}")
 
 
 def add_location_visualizations(informe, df_prev_full, df_roed_full, df_lamp_full, location_prefix):
     """
-    Add all visualizations for a specific location to the report
+    Agregar todas las visualizaciones para una ubicación específica al reporte
     
     Args:
-        informe: InformeHospitalGenerator instance
-        df_prev_full: Processed preventivos data
-        df_roed_full: Processed roedores data
-        df_lamp_full: Processed lamparas data
-        location_prefix: 'med' for Medellín, 'rio' for Rionegro
+        informe: Instancia de InformeHospitalGenerator
+        df_prev_full: Datos procesados de preventivos
+        df_roed_full: Datos procesados de roedores
+        df_lamp_full: Datos procesados de lámparas
+        location_prefix: 'med' para Medellín, 'rio' para Rionegro
     """
     try:
-        # Preventivos visualizations
+        # Visualizaciones de preventivos
         informe.agregar_resultado_completo(
             generate_order_area_plot, 
             df_prev_full,
@@ -164,7 +164,7 @@ def add_location_visualizations(informe, df_prev_full, df_roed_full, df_lamp_ful
             f'{location_prefix}_preventivos_3_tabla'
         )
         
-        # Roedores visualizations
+        # Visualizaciones de roedores
         informe.agregar_resultado_completo(
             generate_roedores_station_status_plot, 
             df_roed_full,
@@ -178,7 +178,7 @@ def add_location_visualizations(informe, df_prev_full, df_roed_full, df_lamp_ful
             f'{location_prefix}_roedores_2_tabla'
         )
 
-        # Lámparas visualizations
+        # Visualizaciones de lámparas
         informe.agregar_resultado_completo(
             plot_estado_lamparas_por_mes,
             df_lamp_full,
@@ -205,54 +205,54 @@ def add_location_visualizations(informe, df_prev_full, df_roed_full, df_lamp_ful
         )
         
     except Exception as e:
-        raise Exception(f"Error adding visualizations for {location_prefix}: {str(e)}")
+        raise Exception(f"Error agregando visualizaciones para {location_prefix}: {str(e)}")
 
 
 def generate_report_for_locations(locations, mes_excluir='Oct 2025', template_path='Plantilla.docx', return_buffer=True):
     """
-    Generate report for specified locations
+    Generar reporte para ubicaciones especificadas
     
     Args:
-        locations: List of locations ['Medellín', 'Rionegro'] or single location
-        mes_excluir: Month to exclude from analysis
-        template_path: Path to Word template
-        return_buffer: If True, return BytesIO buffer; if False, save to file
+        locations: Lista de ubicaciones ['Medellín', 'Rionegro'] o ubicación única
+        mes_excluir: Mes a excluir del análisis
+        template_path: Ruta a la plantilla Word
+        return_buffer: Si es True, retorna buffer BytesIO; si es False, guarda a archivo
         
     Returns:
-        BytesIO buffer if return_buffer=True, filename if return_buffer=False
+        Buffer BytesIO si return_buffer=True, nombre de archivo si return_buffer=False
     """
     try:
-        # Ensure locations is a list
+        # Asegurar que locations sea una lista
         if isinstance(locations, str):
             locations = [locations]
         
-        # Load API data
+        # Cargar datos de API
         prev_data, roed_data, lamp_data = load_api_data()
         
-        # Initialize report generator
+        # Inicializar generador de reportes
         informe = InformeHospitalGenerator(template_path=template_path)
         
-        # Process each location
+        # Procesar cada ubicación
         for location in locations:
-            # Determine location prefix
+            # Determinar prefijo de ubicación
             location_prefix = 'med' if location == 'Medellín' else 'rio'
             
-            # Process location data
+            # Procesar datos de ubicación
             df_prev_full, df_roed_full, df_lamp_full = process_location_data(
                 prev_data, roed_data, lamp_data, location, mes_excluir
             )
             
-            # Add visualizations for this location
+            # Agregar visualizaciones para esta ubicación
             add_location_visualizations(
                 informe, df_prev_full, df_roed_full, df_lamp_full, location_prefix
             )
         
-        # Generate report
+        # Generar reporte
         if return_buffer:
             buffer = informe.generar_informe(return_buffer=True)
             return buffer
         else:
-            # Generate filename based on locations and date
+            # Generar nombre de archivo basado en ubicaciones y fecha
             locations_str = "_".join(locations).replace('í', 'i').replace('ó', 'o')
             timestamp = datetime.now().strftime("%Y-%m-%d")
             filename = f'Informe_{locations_str}_{timestamp}.docx'
@@ -260,21 +260,21 @@ def generate_report_for_locations(locations, mes_excluir='Oct 2025', template_pa
             return filename
             
     except Exception as e:
-        raise Exception(f"Error generating report: {str(e)}")
+        raise Exception(f"Error generando reporte: {str(e)}")
 
 
 def get_data_summary(prev_data, roed_data, lamp_data, locations):
     """
-    Get summary statistics for the data
+    Obtener estadísticas de resumen para los datos
     
     Args:
-        prev_data: Raw preventivos data
-        roed_data: Raw roedores data
-        lamp_data: Raw lamparas data
-        locations: List of locations to analyze
+        prev_data: Datos crudos de preventivos
+        roed_data: Datos crudos de roedores
+        lamp_data: Datos crudos de lámparas
+        locations: Lista de ubicaciones a analizar
         
     Returns:
-        dict: Summary statistics
+        dict: Estadísticas de resumen
     """
     try:
         summary = {}
@@ -282,7 +282,7 @@ def get_data_summary(prev_data, roed_data, lamp_data, locations):
         for location in locations:
             location_summary = {}
             
-            # Filter by location
+            # Filtrar por ubicación
             prev_loc = prev_data[prev_data['Sede'] == location]
             roed_loc = roed_data[roed_data['Sede'] == location]
             lamp_loc = lamp_data[lamp_data['Sede'] == location]
@@ -292,7 +292,7 @@ def get_data_summary(prev_data, roed_data, lamp_data, locations):
             location_summary['lamparas_records'] = len(lamp_loc)
             location_summary['total_records'] = len(prev_loc) + len(roed_loc) + len(lamp_loc)
             
-            # Date ranges
+            # Rangos de fechas
             if len(prev_loc) > 0:
                 location_summary['date_range'] = f"{prev_loc['Fecha'].min()} - {prev_loc['Fecha'].max()}"
             
@@ -301,4 +301,4 @@ def get_data_summary(prev_data, roed_data, lamp_data, locations):
         return summary
         
     except Exception as e:
-        raise Exception(f"Error generating data summary: {str(e)}")
+        raise Exception(f"Error generando resumen de datos: {str(e)}")

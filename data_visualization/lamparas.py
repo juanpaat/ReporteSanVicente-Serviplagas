@@ -141,7 +141,7 @@ def plot_estado_lamparas_con_leyenda(df: pd.DataFrame) -> tuple[pd.DataFrame, pl
 
         # Check if any dates were parsed successfully
         if df['Mes_dt'].isna().all():
-            print("[Error] No valid dates found in 'Mes' column")
+            print("[Error] No se encontraron fechas válidas en la columna 'Mes'")
             return
 
         latest_month = df.loc[df['Mes_dt'].notna(), 'Mes_dt'].max()
@@ -150,7 +150,7 @@ def plot_estado_lamparas_con_leyenda(df: pd.DataFrame) -> tuple[pd.DataFrame, pl
         caption = f"Periodo: {latest_month_spanish}"
 
     except Exception as e:
-        print(f"[Error] Failed to identify latest month: {e}")
+        print(f"[Error] Falló al identificar el mes más reciente: {e}")
         return
 
     # Filter to most recent month
