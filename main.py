@@ -16,9 +16,16 @@ def main():
         print("📍 Procesando ambas ubicaciones: Medellín y Rionegro")
         
         # Generar reporte para ambas ubicaciones (mismo comportamiento original)
+        from datetime import date, timedelta
+        
+        # Usar rango de fechas por defecto (último año)
+        end_date = date.today()
+        start_date = end_date - timedelta(days=365)
+        
         filename = generate_report_for_locations(
             locations=["Medellín", "Rionegro"],
-            mes_excluir='Oct 2025',
+            start_date=start_date,
+            end_date=end_date,
             template_path='Plantilla.docx',
             return_buffer=False  # Guardar a archivo en lugar de retornar buffer
         )

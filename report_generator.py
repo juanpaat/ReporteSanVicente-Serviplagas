@@ -7,6 +7,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from io import BytesIO
 from datetime import datetime
+import config as cfg
 
 # Importaciones de procesamiento de datos
 from data_preprocessing.pipeline import leer_data, procesar_preventivos, procesar_lamparas, procesar_roedores
@@ -95,7 +96,7 @@ def load_api_data():
         raise Exception(f"Error cargando datos de API: {str(e)}")
 
 
-def process_location_data(prev_data, roed_data, lamp_data, location, mes_excluir):
+def process_location_data(prev_data, roed_data, lamp_data, location, start_date=None, end_date=None):
     """
     Procesar datos para una ubicación específica
     
@@ -104,7 +105,8 @@ def process_location_data(prev_data, roed_data, lamp_data, location, mes_excluir
         roed_data: Datos crudos de roedores  
         lamp_data: Datos crudos de lámparas
         location: 'Medellín' o 'Rionegro'
-        mes_excluir: Mes a excluir del análisis
+        start_date: Fecha inicial para filtrar (datetime.date)
+        end_date: Fecha final para filtrar (datetime.date)
         
     Returns:
         tuple: (df_prev_full, df_roed_full, df_lamp_full)
@@ -120,11 +122,28 @@ def process_location_data(prev_data, roed_data, lamp_data, location, mes_excluir
         _, df_roed_full = procesar_roedores(roed_location)
         _, df_lamp_full = procesar_lamparas(lamp_location)
         
-        # Excluir mes especificado
-        if mes_excluir:
-            df_prev_full = df_prev_full[df_prev_full['Mes'] != mes_excluir]
-            df_roed_full = df_roed_full[df_roed_full['Mes'] != mes_excluir]
-            df_lamp_full = df_lamp_full[df_lamp_full['Mes'] != mes_excluir]
+        # Filtrar por rango de fechas si se especifica
+        if start_date and end_date:
+            # Convertir fechas a datetime para comparación
+            start_datetime = pd.to_datetime(start_date)
+            end_datetime = pd.to_datetime(end_date)
+            
+            # Filtrar datos por rango de fechas
+            if 'Fecha pandas' in df_prev_full.columns:
+                df_prev_full = df_prev_full[
+                    (df_prev_full['Fecha pandas'] >= start_datetime) & 
+                    (df_prev_full['Fecha pandas'] <= end_datetime)
+                ]
+            if 'Fecha pandas' in df_roed_full.columns:
+                df_roed_full = df_roed_full[
+                    (df_roed_full['Fecha pandas'] >= start_datetime) & 
+                    (df_roed_full['Fecha pandas'] <= end_datetime)
+                ]
+            if 'Fecha pandas' in df_lamp_full.columns:
+                df_lamp_full = df_lamp_full[
+                    (df_lamp_full['Fecha pandas'] >= start_datetime) & 
+                    (df_lamp_full['Fecha pandas'] <= end_datetime)
+                ]
         
         return df_prev_full, df_roed_full, df_lamp_full
     
@@ -132,89 +151,247 @@ def process_location_data(prev_data, roed_data, lamp_data, location, mes_excluir
         raise Exception(f"Error procesando datos para {location}: {str(e)}")
 
 
-def add_location_visualizations(informe, df_prev_full, df_roed_full, df_lamp_full, location_prefix):
+def add_location_visualizations(informe, df_prev_full, df_roed_full, df_lamp_full):
     """
-    Agregar todas las visualizaciones para una ubicación específica al reporte
+    Agregar todas las visualizaciones al reporte
     
     Args:
         informe: Instancia de InformeHospitalGenerator
         df_prev_full: Datos procesados de preventivos
         df_roed_full: Datos procesados de roedores
         df_lamp_full: Datos procesados de lámparas
-        location_prefix: 'med' para Medellín, 'rio' para Rionegro
     """
     try:
         # Visualizaciones de preventivos
         informe.agregar_resultado_completo(
             generate_order_area_plot, 
             df_prev_full,
-            f'{location_prefix}_preventivos_1_plot',
-            f'{location_prefix}_preventivos_1_tabla'
+            'preventivos_1_plot',
+            'preventivos_1_tabla'
         )
         informe.agregar_resultado_completo(
             generate_plagas_timeseries_facet, 
             df_prev_full,
-            f'{location_prefix}_preventivos_2_plot',
-            f'{location_prefix}_preventivos_2_tabla'
+            'preventivos_2_plot',
+            'preventivos_2_tabla'
         )
         informe.agregar_resultado_completo(
             generate_total_plagas_trend_plot, 
             df_prev_full,
-            f'{location_prefix}_preventivos_3_plot',
-            f'{location_prefix}_preventivos_3_tabla'
+            'preventivos_3_plot',
+            'preventivos_3_tabla'
         )
         
         # Visualizaciones de roedores
         informe.agregar_resultado_completo(
             generate_roedores_station_status_plot, 
             df_roed_full,
-            f'{location_prefix}_roedores_1_plot',
-            f'{location_prefix}_roedores_1_tabla'
+            'roedores_1_plot',
+            'roedores_1_tabla'
         )
         informe.agregar_resultado_completo(
             plot_tendencia_eliminacion_mensual,
             df_roed_full,
-            f'{location_prefix}_roedores_2_plot',
-            f'{location_prefix}_roedores_2_tabla'
+            'roedores_2_plot',
+            'roedores_2_tabla'
         )
 
         # Visualizaciones de lámparas
         informe.agregar_resultado_completo(
             plot_estado_lamparas_por_mes,
             df_lamp_full,
-            f'{location_prefix}_lamparas_1_plot',
-            f'{location_prefix}_lamparas_1_tabla'
+            'lamparas_1_plot',
+            'lamparas_1_tabla'
         )
         informe.agregar_resultado_completo(
             plot_estado_lamparas_con_leyenda,
             df_lamp_full,
-            f'{location_prefix}_lamparas_2_plot',
-            f'{location_prefix}_lamparas_2_tabla'
+            'lamparas_2_plot',
+            'lamparas_2_tabla'
         )
         informe.agregar_resultado_completo(
             plot_capturas_especies_por_mes,
             df_lamp_full,
-            f'{location_prefix}_lamparas_3_plot',
-            f'{location_prefix}_lamparas_3_tabla'
+            'lamparas_3_plot',
+            'lamparas_3_tabla'
         )
         informe.agregar_resultado_completo(
             plot_tendencia_total_capturas,
             df_lamp_full,
-            f'{location_prefix}_lamparas_4_plot',
-            f'{location_prefix}_lamparas_4_tabla'
+            'lamparas_4_plot',
+            'lamparas_4_tabla'
         )
         
     except Exception as e:
-        raise Exception(f"Error agregando visualizaciones para {location_prefix}: {str(e)}")
+        raise Exception(f"Error agregando visualizaciones: {str(e)}")
 
 
-def generate_report_for_locations(locations, mes_excluir='Oct 2025', template_path='Plantilla.docx', return_buffer=True):
+def calculate_areas_from_raw_data(data):
+    """
+    Calcular áreas controladas directamente desde los datos crudos
+    
+    Args:
+        data: DataFrame con datos de preventivos filtrados
+        
+    Returns:
+        str: String con áreas separadas por comas
+    """
+    try:
+        if len(data) == 0:
+            return 'Sin datos disponibles'
+            
+        # Buscar columnas de área/torre/bloque
+        bt_cols = ['Torre o Área', 'Bloque o Área']
+        available_cols = [col for col in bt_cols if col in data.columns]
+        
+        if not available_cols:
+            return 'Columnas de área no encontradas'
+        
+        # Combinar las columnas disponibles
+        areas_list = []
+        for _, row in data.iterrows():
+            area_parts = []
+            for col in available_cols:
+                if pd.notna(row[col]) and str(row[col]).strip():
+                    area_parts.append(str(row[col]).strip())
+            
+            if area_parts:
+                areas_list.append(' '.join(area_parts))
+        
+        # Obtener áreas únicas y ordenadas
+        unique_areas = sorted(set(areas_list))
+        unique_areas = [area for area in unique_areas if area and area != 'nan']
+        
+        return ', '.join(unique_areas) if unique_areas else 'Áreas no especificadas'
+        
+    except Exception as e:
+        print(f"[Warning] Error en calculate_areas_from_raw_data: {e}")
+        return 'Error al procesar áreas'
+
+
+def calculate_report_variables(prev_data, sede, start_date, end_date):
+    """
+    Calcular variables específicas para el reporte Word
+    
+    Args:
+        prev_data: Datos de preventivos
+        sede: Sede seleccionada ('Medellín' o 'Rionegro')
+        start_date: Fecha inicial del filtro
+        end_date: Fecha final del filtro
+        
+    Returns:
+        dict: Diccionario con variables para el reporte
+    """
+    try:
+        # Filtrar datos por sede
+        sede_data = prev_data[prev_data['Sede'] == sede].copy()
+        
+        # Filtrar por rango de fechas en los datos originales primero
+        if start_date and end_date and 'Fecha' in sede_data.columns:
+            # Convertir fechas a datetime
+            sede_data['Fecha_temp'] = pd.to_datetime(sede_data['Fecha'], errors='coerce')
+            start_datetime = pd.to_datetime(start_date)
+            end_datetime = pd.to_datetime(end_date)
+            
+            sede_data = sede_data[
+                (sede_data['Fecha_temp'] >= start_datetime) & 
+                (sede_data['Fecha_temp'] <= end_datetime)
+            ]
+            sede_data = sede_data.drop('Fecha_temp', axis=1)
+        
+        # Calcular áreas controladas ANTES de procesar (desde datos originales)
+        areas_controladas = calculate_areas_from_raw_data(sede_data)
+        
+        # Calcular variables específicas
+        numero_solicitados = 0
+        numero_realizados = 0
+        mes_analisis = "No disponible"
+        ano_analisis = datetime.now().year
+        
+        if len(sede_data) > 0:
+            try:
+                from data_preprocessing.pipeline import procesar_preventivos
+                from data_visualization.preventivos import generate_order_area_plot
+                
+                # Procesar datos
+                _, df_processed = procesar_preventivos(sede_data)
+                
+                if df_processed is not None and len(df_processed) > 0:
+                    # numero_de_realizados: longitud del DataFrame procesado después del filtrado
+                    numero_realizados = len(df_processed)
+                    
+                    # numero_de_solicitados: usar generate_order_area_plot para obtener 'Cantidad de órdenes'
+                    try:
+                        summary_df, _ = generate_order_area_plot(df_processed)
+                        if len(summary_df) > 0 and 'Cantidad de órdenes' in summary_df.columns:
+                            numero_solicitados = summary_df['Cantidad de órdenes'].sum()
+                        else:
+                            numero_solicitados = 0
+                    except Exception as plot_error:
+                        print(f"[Warning] Error calculando numero_de_solicitados: {plot_error}")
+                        numero_solicitados = 0
+                    
+                    # mes_de_analisis: obtener el mes del 'Fecha pandas' máximo
+                    try:
+                        if 'Fecha pandas' in df_processed.columns:
+                            max_date_row = df_processed.loc[df_processed['Fecha pandas'].idxmax()]
+                            if 'Mes' in max_date_row:
+                                mes_analisis = max_date_row['Mes']
+                                # Extraer año del mes de análisis o de la fecha pandas
+                                try:
+                                    max_date = df_processed['Fecha pandas'].max()
+                                    ano_analisis = max_date.year
+                                except:
+                                    ano_analisis = datetime.now().year
+                            else:
+                                mes_analisis = "No disponible"
+                        else:
+                            mes_analisis = "No disponible"
+                    except Exception as date_error:
+                        print(f"[Warning] Error calculando mes_de_analisis: {date_error}")
+                        mes_analisis = "No disponible"
+                    
+            except Exception as e:
+                print(f"[Warning] Error en procesamiento para variables adicionales: {e}")
+                # Usar valores por defecto
+        
+        # Variables del reporte
+        report_variables = {
+            'fecha_de_elaboracion': datetime.now().strftime('%d/%m/%Y'),
+            'dirección': cfg.direcciones.get(sede, '{{direccion_no_encontrada}}'),
+            'sede': sede,
+            'numero_de_solicitados': str(numero_solicitados),
+            'numero_de_realizados': str(numero_realizados),
+            'mes_de_analisis': mes_analisis,
+            'ano_de_analisis': str(ano_analisis),
+            'areas_controladas': areas_controladas
+        }
+        
+        return report_variables
+        
+    except Exception as e:
+        print(f"[Warning] Error calculando variables del reporte: {e}")
+        # Valores por defecto en caso de error
+        return {
+            'fecha_de_elaboracion': datetime.now().strftime('%d/%m/%Y'),
+            'dirección': cfg.direcciones.get(sede, '{{direccion_no_encontrada}}'),
+            'sede': sede,
+            'numero_de_solicitados': '0',
+            'numero_de_realizados': '0',
+            'mes_de_analisis': 'No disponible',
+            'ano_de_analisis': str(datetime.now().year),
+            'areas_controladas': 'Error al obtener áreas controladas'
+        }
+
+
+def generate_report_for_locations(locations, start_date=None, end_date=None, template_path='Plantilla.docx', return_buffer=True):
     """
     Generar reporte para ubicaciones especificadas
     
     Args:
         locations: Lista de ubicaciones ['Medellín', 'Rionegro'] o ubicación única
-        mes_excluir: Mes a excluir del análisis
+        start_date: Fecha inicial para filtrar (datetime.date)
+        end_date: Fecha final para filtrar (datetime.date)
         template_path: Ruta a la plantilla Word
         return_buffer: Si es True, retorna buffer BytesIO; si es False, guarda a archivo
         
@@ -229,22 +406,26 @@ def generate_report_for_locations(locations, mes_excluir='Oct 2025', template_pa
         # Cargar datos de API
         prev_data, roed_data, lamp_data = load_api_data()
         
-        # Inicializar generador de reportes
+        # Calcular variables para el reporte
+        report_data = calculate_report_variables(prev_data, locations[0], start_date, end_date)
+        
+        # Inicializar generador de reportes con variables adicionales
         informe = InformeHospitalGenerator(template_path=template_path)
+        
+        # Agregar variables del reporte al contexto
+        for key, value in report_data.items():
+            informe.context[key] = value
         
         # Procesar cada ubicación
         for location in locations:
-            # Determinar prefijo de ubicación
-            location_prefix = 'med' if location == 'Medellín' else 'rio'
-            
             # Procesar datos de ubicación
             df_prev_full, df_roed_full, df_lamp_full = process_location_data(
-                prev_data, roed_data, lamp_data, location, mes_excluir
+                prev_data, roed_data, lamp_data, location, start_date, end_date
             )
             
-            # Agregar visualizaciones para esta ubicación
+            # Agregar visualizaciones
             add_location_visualizations(
-                informe, df_prev_full, df_roed_full, df_lamp_full, location_prefix
+                informe, df_prev_full, df_roed_full, df_lamp_full
             )
         
         # Generar reporte

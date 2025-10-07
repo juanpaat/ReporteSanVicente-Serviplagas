@@ -11,7 +11,7 @@ from report_generator import load_api_data, generate_report_for_locations, get_d
 
 # Configuración de página
 st.set_page_config(
-    page_title="Generador de Reportes de Control de Plagas Hospitalario",
+    page_title="Generador Reporte San Vicente",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -85,23 +85,70 @@ def main():
         st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
         st.header("📋 Configuración")
         
-        # Selector de ubicación
-        st.subheader("🏢 Selección de Ubicación")
-        location_options = ["Medellín", "Rionegro", "Ambas Ubicaciones"]
+        # Selector de ubicación (solo una sede)
+        st.subheader("🏢 Selección de Sede")
+        location_options = ["Medellín", "Rionegro"]
         selected_location = st.selectbox(
-            "Seleccionar ubicación hospitalaria:",
+            "Seleccionar sede hospitalaria:",
             options=location_options,
-            index=2,  # Por defecto "Ambas Ubicaciones"
-            help="Elegir qué ubicación(es) hospitalaria(s) incluir en el reporte"
+            index=0,  # Por defecto "Medellín"
+            help="Elegir qué sede hospitalaria incluir en el reporte"
         )
         
-        # Exclusión de mes
-        st.subheader("📅 Filtrado de Datos")
-        exclude_month = st.text_input(
-            "Mes a excluir (formato: 'Oct 2025'):",
-            value="Oct 2025",
-            help="Ingresar el mes a excluir del análisis en formato 'Mon YYYY'"
-        )
+        # Filtro de rango de fechas
+        st.subheader("📅 Rango de Fechas")
+        
+        # Obtener fechas disponibles para el selector
+        if st.session_state.data_loaded:
+            try:
+                prev_data, _, _ = st.session_state.api_data
+                # Filtrar por sede seleccionada
+                sede_data = prev_data[prev_data['Sede'] == selected_location]
+                
+                if len(sede_data) > 0 and 'Fecha' in sede_data.columns:
+                    # Convertir fechas a datetime
+                    sede_data['Fecha_dt'] = pd.to_datetime(sede_data['Fecha'], errors='coerce')
+                    min_date = sede_data['Fecha_dt'].min().date()
+                    max_date = sede_data['Fecha_dt'].max().date()
+                    
+                    # Selector de rango de fechas
+                    date_range = st.date_input(
+                        "Seleccionar rango de fechas para el análisis:",
+                        value=(min_date, max_date),
+                        min_value=min_date,
+                        max_value=max_date,
+                        help="Seleccionar fecha inicial y final para filtrar los datos"
+                    )
+                    
+                    # Validar que se seleccionaron dos fechas
+                    if isinstance(date_range, tuple) and len(date_range) == 2:
+                        start_date, end_date = date_range
+                        st.info(f"📅 Rango seleccionado: {start_date.strftime('%Y-%m-%d')} a {end_date.strftime('%Y-%m-%d')}")
+                    else:
+                        st.warning("⚠️ Por favor selecciona una fecha inicial y una fecha final.")
+                        start_date, end_date = min_date, max_date
+                else:
+                    st.warning("⚠️ No se encontraron datos de fecha para la sede seleccionada.")
+                    start_date = end_date = datetime.now().date()
+                    
+            except Exception as e:
+                st.warning(f"⚠️ Error al obtener rango de fechas: {str(e)}")
+                start_date = end_date = datetime.now().date()
+        else:
+            # Valores por defecto cuando no hay datos cargados
+            default_end = datetime.now().date()
+            default_start = default_end - timedelta(days=365)  # 1 año atrás
+            
+            date_range = st.date_input(
+                "Seleccionar rango de fechas para el análisis:",
+                value=(default_start, default_end),
+                help="Seleccionar fecha inicial y final para filtrar los datos"
+            )
+            
+            if isinstance(date_range, tuple) and len(date_range) == 2:
+                start_date, end_date = date_range
+            else:
+                start_date, end_date = default_start, default_end
         
         # Opciones avanzadas
         with st.expander("⚙️ Opciones Avanzadas"):
@@ -176,11 +223,8 @@ def main():
             try:
                 prev_data, roed_data, lamp_data = st.session_state.api_data
                 
-                # Determinar ubicaciones para procesamiento
-                if selected_location == "Ambas Ubicaciones":
-                    locations_to_process = ["Medellín", "Rionegro"]
-                else:
-                    locations_to_process = [selected_location]
+                # Determinar ubicación para procesamiento (solo una sede)
+                locations_to_process = [selected_location]
                 
                 # Mostrar resumen de datos
                 with st.expander("📊 Resumen de Datos", expanded=False):
@@ -211,13 +255,9 @@ def main():
                 st.error("❌ ¡Por favor carga los datos primero!")
                 return
             
-            # Determinar ubicaciones para procesamiento
-            if selected_location == "Ambas Ubicaciones":
-                locations_to_process = ["Medellín", "Rionegro"]
-                filename_location = "Ambas_Ubicaciones"
-            else:
-                locations_to_process = [selected_location]
-                filename_location = selected_location.replace('í', 'i').replace('ó', 'o')
+            # Determinar ubicación para procesamiento (solo una sede)
+            locations_to_process = [selected_location]
+            filename_location = selected_location.replace('í', 'i').replace('ó', 'o')
             
             # Mostrar progreso
             progress_bar = st.progress(0)
@@ -246,7 +286,8 @@ def main():
                 
                 buffer = generate_report_for_locations(
                     locations=locations_to_process,
-                    mes_excluir=exclude_month,
+                    start_date=start_date,
+                    end_date=end_date,
                     template_path=template_path,
                     return_buffer=True
                 )
@@ -327,17 +368,18 @@ def main():
             st.markdown("""
             **Pasos para generar un reporte:**
             
-            1. **Seleccionar Ubicación**: Elegir qué ubicación(es) hospitalaria(s) incluir
-            2. **Configurar Filtros**: Especificar qué mes excluir del análisis
+            1. **Seleccionar Sede**: Elegir qué sede hospitalaria incluir (Medellín o Rionegro)
+            2. **Configurar Rango de Fechas**: Seleccionar fecha inicial y final para el análisis
             3. **Cargar Datos**: Hacer clic en 'Cargar/Actualizar Datos' para obtener la información más reciente
             4. **Generar Reporte**: Hacer clic en 'Generar Reporte' para crear el documento Word
             5. **Descargar**: Usar el botón de descarga para guardar el reporte
             
             **Consejos:**
             - La aplicación carga datos automáticamente al abrirse por primera vez
-            - Usar 'Ambas Ubicaciones' para incluir datos de ambos hospitales
+            - Solo se puede seleccionar una sede a la vez
+            - El rango de fechas se ajusta automáticamente según los datos disponibles
             - Los reportes incluyen visualizaciones y tablas detalladas
-            - Los archivos generados se nombran con ubicación y marca de tiempo
+            - Los archivos generados se nombran con sede y marca de tiempo
             """)
         
         with st.expander("Solución de Problemas"):
@@ -348,9 +390,10 @@ def main():
             - **Falla la generación de reporte**: Asegurar que la plantilla Word sea válida
             - **La descarga no funciona**: Intentar generar el reporte nuevamente
             
-            **Formato de datos para exclusión de mes:**
-            - Usar formato como 'Oct 2025', 'Jan 2024', etc.
-            - Los nombres de mes deben ser abreviaciones de 3 letras
+            **Rango de fechas:**
+            - Seleccionar tanto fecha inicial como fecha final
+            - El rango se ajusta automáticamente según los datos disponibles para cada sede
+            - Los datos fuera del rango seleccionado se excluyen del análisis
             """)
 
 

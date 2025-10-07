@@ -43,4 +43,10 @@ subareas_preventivos = [
     'Torre D'
 ]
 
+# Direcciones por sede
+direcciones = {
+    'Medellín': 'Calle 64 # 51 D - 154 MEDELLÍN',
+    'Rionegro': 'Vereda La Convención, Vía Aeropuerto Llanogrande Km 23'   # Placeholder - usuario agregará valor después
+}
+
 
