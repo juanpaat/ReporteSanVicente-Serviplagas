@@ -1,191 +1,228 @@
-# Hospital Pest Control Report Generator 🏥
+# 🏥 Sistema de Reportes de Control de Plagas - San Vicente Fundación
 
-Automated system for generating comprehensive pest control reports for hospital locations (Medellín and Rionegro). Available as both a **Streamlit web application** and **command-line script**.
+Sistema automatizado para generar reportes de control de plagas en hospitales (Medellín y Rionegro). Incluye aplicación web interactiva con dos funcionalidades principales: generación de reportes Word y exportación de datos Excel.
 
-## 🚀 Features
+## 🎯 Funcionalidades Principales
 
-### Web Application (Streamlit)
-- **Interactive UI**: User-friendly web interface
-- **Real-time Data**: Cached API data loading with refresh capability- **Flexible Reports**: Generate for individual locations or both
-- **Month Filtering**: Exclude specific months from analysis
-- **Progress Tracking**: Visual indicators during report generation
-- **Instant Download**: Direct browser downloads of Word documents
-- **Error Handling**: Comprehensive error reporting
+### 📈 Generación de Reportes Word
+- **Interfaz interactiva**: Aplicación web fácil de usar
+- **Datos en tiempo real**: Carga de APIs con cache automático
+- **Reportes flexibles**: Generar por sede individual
+- **Filtros de fecha**: Selección de rangos personalizados
+- **Seguimiento visual**: Barras de progreso durante generación
+- **Descarga directa**: Documentos Word listos para usar
+- **Manejo de errores**: Reportes de error detallados
 
-### Command Line Interface
-- **Automated Processing**: Script-based execution
-- **Batch Processing**: Generate multiple reports
-- **Scheduled Execution**: Integrate with cron jobs
+### 📊 Exportación de Datos Excel
+- **Filtros independientes**: Rangos de fechas separados del reporte
+- **Procesamiento completo**: Datos de preventivos, lámparas y roedores
+- **Múltiples formatos**: Descargas individuales o archivo combinado
+- **Formato Excel**: Compatible con todas las versiones (.xlsx)
+- **Previsualización**: Ver datos antes de descargar
 
-## 🛠️ Quick Start
+### 🔧 Interfaz de Línea de Comandos
+- **Procesamiento automatizado**: Ejecución por scripts
+- **Procesamiento por lotes**: Múltiples reportes
+- **Ejecución programada**: Integración con cron jobs
 
-### 1. Installation
+## 🛠️ Inicio Rápido
+
+### 1. Instalación
 ```bash
-# Run the setup script
-./setup.sh
-
-# Or manually install dependencies
-
+# Instalar dependencias
 pip install -r requirements.txt
 ```
 
-### 2. Configuration
+### 2. Configuración
 
-#### Local Development
-Create a `.env` file with your API endpoints:
+#### Desarrollo Local
+Crea un archivo `.env` con tus endpoints de API:
 ```env
-prev_API=https://your-api-endpoint/preventivos
-roe_API=https://your-api-endpoint/roedores  
-lam_API=https://your-api-endpoint/lamparas
+prev_API=https://tu-endpoint/preventivos
+roe_API=https://tu-endpoint/roedores  
+lam_API=https://tu-endpoint/lamparas
 ```
 
-#### Streamlit Cloud Deployment
-The application supports both local development and Streamlit Cloud deployment:
-
-1. **Push to GitHub**: Push your code to a public GitHub repository
-2. **Deploy on Streamlit Cloud**: 
-   - Go to [share.streamlit.io](https://share.streamlit.io)
-   - Connect your GitHub repository
-   - Deploy the app using `app.py` as the main file
-3. **Configure Secrets**: In your Streamlit Cloud app settings, add the following in the "Secrets management" section:
+#### Despliegue en Streamlit Cloud
+1. **Subir a GitHub**: Sube tu código a un repositorio público
+2. **Desplegar en Streamlit Cloud**: 
+   - Ve a [share.streamlit.io](https://share.streamlit.io)
+   - Conecta tu repositorio de GitHub
+   - Despliega usando `app.py` como archivo principal
+3. **Configurar Secretos**: En los ajustes de tu app, agrega en "Secrets management":
    ```toml
-   prev_API = "https://your-api-endpoint/preventivos"
-   roe_API = "https://your-api-endpoint/roedores"  
-   lam_API = "https://your-api-endpoint/lamparas"
+   prev_API = "https://tu-endpoint/preventivos"
+   roe_API = "https://tu-endpoint/roedores"  
+   lam_API = "https://tu-endpoint/lamparas"
    ```
 
-**Note**: Never commit your `.env` file to the repository. The application automatically detects the environment and uses the appropriate configuration method.
+**Nota**: Nunca subas el archivo `.env` al repositorio.
 
-### 3. Usage
+### 3. Uso
 
-**Web Application (Recommended):**
+**Aplicación Web (Recomendado):**
 ```bash
 streamlit run app.py
-# Then open http://localhost:8501
+# Luego abre http://localhost:8501
 ```
 
-**Command Line:**
+**Línea de Comandos:**
 ```bash
 python main.py
 ```
 
-## 📁 Project Structure
+## 📁 Estructura del Proyecto
 
 ```
 ReporteSanVicente-Serviplagas/
-├── app.py                     # Streamlit web application
-├── main.py                    # Command-line script
-├── report_generator.py        # Core report generation
-├── config.py                  # Configuration settings
-├── Plantilla.docx            # Word template
-├── .env                      # API endpoints (create this)
+├── app.py                     # Aplicación web Streamlit
+├── main.py                    # Script de línea de comandos
+├── report_generator.py        # Generación de reportes
+├── config.py                  # Configuración
+├── Plantilla.docx            # Plantilla Word
+├── .env                      # Endpoints API (crear este archivo)
 │
-├── data_preprocessing/        # Data processing modules
-├── data_visualization/        # Chart generation modules  
-└── Engine/                   # Word document generation
+├── data_preprocessing/        # Módulos de procesamiento
+├── data_visualization/        # Generación de gráficos
+└── Engine/                   # Generación de documentos Word
 ```
 
-## 🎯 Data Processing
+## 🎯 Procesamiento de Datos
 
-### Supported Data Types
-- **Preventivos**: Preventive treatments, pest evidence, pesticide usage
-- **Roedores**: Rodent stations, bait consumption, elimination trends
-- **Lámparas**: Lamp traps, species capture, status monitoring
+### Tipos de Datos Soportados
+- **Preventivos**: Tratamientos preventivos, evidencia de plagas, uso de plaguicidas
+- **Roedores**: Estaciones de roedores, consumo de cebo, tendencias de eliminación
+- **Lámparas**: Trampas de luz, captura de especies, monitoreo de estado
 
-### Processing Features
-- Multi-source API integration
-- Location-based filtering (Medellín/Rionegro)
-- Date management and month exclusion
-- Data validation and error handling
-- UTF-8 encoding support for Spanish characters
+### Características del Procesamiento
+- Integración multi-API
+- Filtrado por ubicación (Medellín/Rionegro)
+- Gestión de fechas y filtros temporales
+- Validación de datos y manejo de errores
+- Soporte UTF-8 para caracteres en español
 
-## 📊 Visualizations
+## 🎮 Uso de la Aplicación Web
 
-### Generated Charts
-- **Preventive Treatments**: Area plots, time series, trend analysis
-- **Rodent Control**: Station status, elimination trends
-- **Lamp Traps**: Status monitoring, species capture analysis
+### Tab 1: 📈 Generación de Reportes
+1. **Seleccionar Sede**: Medellín o Rionegro
+2. **Elegir Fechas**: Rango para el análisis
+3. **Subir Plantilla** (opcional): Plantilla Word personalizada
+4. **Establecer Configuración**: Confirmar parámetros
+5. **Generar Reporte**: Crear documento Word profesional
+6. **Descargar**: Archivo Word con gráficos y tablas
 
-### Chart Features
-- High-resolution output (300 DPI)
-- Professional styling with consistent colors
-- Spanish language labels
-- Automatic number formatting
+### Tab 2: 📊 Exportar Datos
+1. **Seleccionar Fechas**: Rango independiente del reporte
+2. **Cargar y Procesar**: Obtener y procesar datos de APIs
+3. **Ver Métricas**: Cantidad de registros por tipo
+4. **Descargar Excel**: 
+   - Individual: Preventivos, Lámparas, Roedores
+   - Combinado: Archivo con múltiples hojas
+5. **Previsualizar** (opcional): Ver datos antes de descargar
 
-## � Report Generation
+## 📊 Visualizaciones y Reportes
 
-### Word Document Features
-- Professional layout with embedded charts and tables
-- Native Word tables with proper formatting
-- Location-specific sections (med_*, rio_*)
-- Automatic template variable replacement
-- In-memory generation for web downloads
+### Gráficos Generados
+- **Tratamientos Preventivos**: Gráficos de área, series temporales, análisis de tendencias
+- **Control de Roedores**: Estado de estaciones, tendencias de eliminación
+- **Trampas de Luz**: Monitoreo de estado, análisis de captura de especies
 
-### Template Requirements
-Ensure `Plantilla.docx` contains placeholders:
-- `{{med_preventivos_1_plot}}`, `{{med_preventivos_1_tabla}}`
-- `{{med_roedores_1_plot}}`, `{{med_roedores_1_tabla}}`
-- `{{med_lamparas_1_plot}}`, `{{med_lamparas_1_tabla}}`
-- Corresponding Rionegro placeholders (`rio_*`)
+### Características de los Gráficos
+- Alta resolución (300 DPI)
+- Estilo profesional con colores consistentes
+- Etiquetas en español
+- Formato automático de números
 
-## 🔧 Dependencies
+### Características de Documentos Word
+- Diseño profesional con gráficos y tablas embebidas
+- Tablas nativas de Word con formato apropiado
+- Generación en memoria para descargas web
+- Reemplazo automático de variables de plantilla
 
-- `pandas==2.3.2` - Data manipulation
-- `matplotlib==3.10.6` - Visualizations
-- `seaborn==0.13.2` - Statistical plots
-- `streamlit==1.28.0` - Web application
-- `docxtpl==0.20.1` - Word templates
-- `python-docx==1.2.0` - Document manipulation
-- `requests==2.31.0` - API communication
-- `python-dotenv==1.1.1` - Environment variables
+## 🔧 Dependencias Principales
 
-## � Troubleshooting
+- `pandas==2.3.2` - Manipulación de datos
+- `matplotlib==3.10.6` - Visualizaciones
+- `seaborn==0.13.2` - Gráficos estadísticos
+- `streamlit>=1.28.0` - Aplicación web
+- `docxtpl==0.20.1` - Plantillas Word
+- `python-docx==1.2.0` - Manipulación de documentos
+- `requests>=2.31.0` - Comunicación API
+- `xlsxwriter>=3.0.0` - Exportación Excel
+- `python-dotenv==1.1.1` - Variables de entorno
 
-### Common Issues
+## 🆘 Solución de Problemas
 
-**API Connection Failed**
-- Verify `.env` file contains correct URLs
-- Check internet connection
-- Confirm API server availability
+### Problemas Comunes
 
-**Template Errors**
-- Ensure `Plantilla.docx` exists in project root
-- Verify all required placeholders are present
-- Check file permissions
+**Conexión API Falló**
+- Verificar que `.env` contenga URLs correctas
+- Revisar conexión a internet
+- Confirmar disponibilidad del servidor API
 
-**Memory Issues**
-- Process one location at a time for large datasets
-- Close unnecessary applications
-- Consider increasing system memory
+**Errores de Plantilla**
+- Asegurar que `Plantilla.docx` existe en la raíz del proyecto
+- Verificar que todos los marcadores requeridos estén presentes
+- Revisar permisos de archivo
 
-### Error Messages
+**Problemas de Memoria**
+- Procesar una ubicación a la vez para datasets grandes
+- Cerrar aplicaciones innecesarias
+- Considerar aumentar memoria del sistema
+
+### Mensajes de Error Comunes
 
 **"Error loading API data"**
-- Check API endpoints and network connectivity
-- Verify API response format
+- Revisar endpoints API y conectividad de red
+- Verificar formato de respuesta API
 
 **"Error generating report"**
-- Validate Word template integrity
-- Review error details in application logs
+- Validar integridad de plantilla Word
+- Revisar detalles de error en logs de aplicación
 
-## � Development
+**"Error procesando datos"**
+- Verificar que los datos tengan el formato esperado
+- Revisar rango de fechas seleccionado
 
-### Adding New Visualizations
-1. Create function in appropriate `data_visualization/` module
-2. Add function call to `report_generator.py`
-3. Update Word template with new placeholders
+## 💡 Consejos de Uso
 
-### Modifying Data Processing
-1. Update functions in `data_preprocessing/` modules
-2. Test with both web and CLI interfaces
-3. Verify output compatibility
+### Para Mejores Resultados
+1. **Rangos de Fechas**: Usar rangos de hasta 3 meses para mejor rendimiento
+2. **Conexión Internet**: Asegurar conexión estable antes de procesar
+3. **Navegador**: Usar Chrome o Firefox para mejor compatibilidad
+4. **Descargas**: Los archivos se guardan en la carpeta de descargas del navegador
 
-## 📄 License
+### Flujo de Trabajo Recomendado
+1. **Primero**: Usar tab "Exportar Datos" para revisar datos disponibles
+2. **Segundo**: Generar reportes Word con datos confirmados
+3. **Análisis**: Usar archivos Excel para análisis detallados
+4. **Presentación**: Usar reportes Word para presentaciones formales
 
-Proprietary software for Serviplagas hospital pest control reporting.
+## 🚀 Desarrollo
+
+### Agregar Nuevas Visualizaciones
+1. Crear función en módulo `data_visualization/` apropiado
+2. Agregar llamada a función en `report_generator.py`
+3. Actualizar plantilla Word con nuevos marcadores
+
+### Modificar Procesamiento de Datos
+1. Actualizar funciones en módulos `data_preprocessing/`
+2. Probar con interfaces web y CLI
+3. Verificar compatibilidad de salida
+
+## 📄 Información del Sistema
+
+**Software propietario para reportes de control de plagas hospitalario de Serviplagas**
+
+### Estado Actual
+- ✅ **Aplicación Web**: Completamente funcional
+- ✅ **Generación de Reportes**: Documentos Word profesionales
+- ✅ **Exportación de Datos**: Archivos Excel con múltiples formatos
+- ✅ **Filtros de Fecha**: Independientes y flexibles
+- ✅ **Interfaz de Usuario**: Intuitiva y fácil de usar
 
 ---
 
-**Sistema de Reportes de Control de Plagas** 📊🏥
+**🏥 Sistema de Reportes de Control de Plagas San Vicente Fundación**
 
-*Generación automatizada de informes profesionales para servicios de control de plagas en hospitales*
+*Generación automatizada de informes profesionales y exportación de datos para servicios de control de plagas en hospitales*

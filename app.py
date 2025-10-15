@@ -7,7 +7,9 @@ import pandas as pd
 import os
 from datetime import datetime, timedelta
 import traceback
+from io import BytesIO
 from report_generator import load_api_data, generate_report_for_locations, get_data_summary
+from data_preprocessing.pipeline import procesar_preventivos, procesar_lamparas, procesar_roedores
 
 
 # Configuración de página
@@ -67,11 +69,9 @@ def cached_load_api_data():
     return load_api_data()
 
 
-def main():
-    # Encabezado principal
-    st.markdown('<h1 class="main-header">🏥 Generador de Reportes de Control de Plagas San Vicente Fundación</h1>', unsafe_allow_html=True)
-    
-    # Inicializar estado de sesión
+def init_session_state():
+    """Initialize session state variables"""
+    # Report generation tab
     if 'report_generated' not in st.session_state:
         st.session_state.report_generated = False
     if 'report_buffer' not in st.session_state:
@@ -89,6 +89,220 @@ def main():
     if 'template_file' not in st.session_state:
         st.session_state.template_file = None
     
+    # Data export tab
+    if 'export_data_loaded' not in st.session_state:
+        st.session_state.export_data_loaded = False
+    if 'export_processed_data' not in st.session_state:
+        st.session_state.export_processed_data = None
+
+
+def convert_df_to_excel(df, sheet_name="Datos"):
+    """Convert DataFrame to Excel format in memory"""
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name=sheet_name)
+    output.seek(0)
+    return output.getvalue()
+
+
+def data_export_tab():
+    """Data Export Tab functionality"""
+    st.subheader("📊 Exportar Datos Procesados")
+    
+    # Independent date range filter
+    st.markdown("### 📅 Filtro de Fechas")
+    
+    # Default date range: September 1, 2025 to today
+    default_start = datetime(2025, 9, 1).date()
+    default_end = datetime.now().date()
+    
+    # Date input
+    export_date_range = st.date_input(
+        "Seleccionar rango de fechas:",
+        value=(default_start, default_end),
+        min_value=datetime(2020, 1, 1).date(),
+        max_value=datetime.now().date(),
+        help="Selecciona el rango de fechas para filtrar y procesar los datos"
+    )
+    
+    # Validate date range
+    if isinstance(export_date_range, tuple) and len(export_date_range) == 2:
+        export_start_date, export_end_date = export_date_range
+        st.info(f"📅 Rango seleccionado: {export_start_date} a {export_end_date}")
+    else:
+        st.warning("⚠️ Por favor selecciona una fecha inicial y una fecha final.")
+        return
+    
+    # Load data button
+    if st.button("🔄 Cargar y Procesar Datos", use_container_width=True, type="primary"):
+        with st.spinner("Cargando y procesando datos..."):
+            try:
+                # Load API data
+                prev_data, roed_data, lamp_data = cached_load_api_data()
+                
+                # Filter data by date range for all datasets
+                def filter_by_date_range(df, start_date, end_date):
+                    if 'Fecha' not in df.columns:
+                        return df
+                    
+                    # Convert to datetime for filtering
+                    df_filtered = df.copy()
+                    df_filtered.loc[:, 'Fecha_temp'] = pd.to_datetime(df_filtered['Fecha'], errors='coerce')
+                    
+                    # Filter by date range
+                    start_datetime = pd.to_datetime(start_date)
+                    end_datetime = pd.to_datetime(end_date)
+                    
+                    df_filtered = df_filtered[
+                        (df_filtered['Fecha_temp'] >= start_datetime) & 
+                        (df_filtered['Fecha_temp'] <= end_datetime)
+                    ]
+                    
+                    # Remove temporary column
+                    df_filtered = df_filtered.drop('Fecha_temp', axis=1, errors='ignore')
+                    
+                    return df_filtered
+                
+                # Filter all datasets
+                prev_filtered = filter_by_date_range(prev_data, export_start_date, export_end_date)
+                roed_filtered = filter_by_date_range(roed_data, export_start_date, export_end_date)
+                lamp_filtered = filter_by_date_range(lamp_data, export_start_date, export_end_date)
+                
+                # Process data using the pipeline functions
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                status_text.text("🔄 Procesando datos de preventivos...")
+                progress_bar.progress(20)
+                df_prev, df_prev_full = procesar_preventivos(prev_filtered)
+                
+                status_text.text("🔄 Procesando datos de lámparas...")
+                progress_bar.progress(50)
+                df_lamp, df_lamp_full = procesar_lamparas(lamp_filtered)
+                
+                status_text.text("🔄 Procesando datos de roedores...")
+                progress_bar.progress(80)
+                df_roed, df_roed_full = procesar_roedores(roed_filtered)
+                
+                status_text.text("✅ ¡Procesamiento completado!")
+                progress_bar.progress(100)
+                
+                # Store processed data in session state
+                st.session_state.export_processed_data = {
+                    'preventivos': df_prev,
+                    'lamparas': df_lamp,
+                    'roedores': df_roed,
+                    'date_range': (export_start_date, export_end_date)
+                }
+                st.session_state.export_data_loaded = True
+                
+                # Clear progress indicators
+                progress_bar.empty()
+                status_text.empty()
+                
+                st.success("✅ ¡Datos procesados exitosamente!")
+                
+            except Exception as e:
+                st.error(f"❌ Error procesando datos: {str(e)}")
+                with st.expander("🔍 Detalles del Error"):
+                    st.code(traceback.format_exc())
+    
+    # Show processed data and download options
+    if st.session_state.export_data_loaded and st.session_state.export_processed_data:
+        st.markdown("---")
+        st.markdown("### 📊 Datos Procesados")
+        
+        data = st.session_state.export_processed_data
+        date_range_str = f"{data['date_range'][0]}_{data['date_range'][1]}"
+        
+        # Display data summaries
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("🛡️ Preventivos", len(data['preventivos']))
+            if len(data['preventivos']) > 0:
+                excel_prev = convert_df_to_excel(data['preventivos'], "Preventivos")
+                st.download_button(
+                    label="⬇️ Descargar Preventivos",
+                    data=excel_prev,
+                    file_name=f"Preventivos_{date_range_str}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+        
+        with col2:
+            st.metric("💡 Lámparas", len(data['lamparas']))
+            if len(data['lamparas']) > 0:
+                excel_lamp = convert_df_to_excel(data['lamparas'], "Lamparas")
+                st.download_button(
+                    label="⬇️ Descargar Lámparas",
+                    data=excel_lamp,
+                    file_name=f"Lamparas_{date_range_str}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+        
+        with col3:
+            st.metric("🐭 Roedores", len(data['roedores']))
+            if len(data['roedores']) > 0:
+                excel_roed = convert_df_to_excel(data['roedores'], "Roedores")
+                st.download_button(
+                    label="⬇️ Descargar Roedores",
+                    data=excel_roed,
+                    file_name=f"Roedores_{date_range_str}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+        
+        # Combined download
+        st.markdown("---")
+        st.markdown("### 📦 Descarga Combinada")
+        
+        # Create combined Excel file with multiple sheets
+        combined_output = BytesIO()
+        with pd.ExcelWriter(combined_output, engine='xlsxwriter') as writer:
+            if len(data['preventivos']) > 0:
+                data['preventivos'].to_excel(writer, index=False, sheet_name='Preventivos')
+            if len(data['lamparas']) > 0:
+                data['lamparas'].to_excel(writer, index=False, sheet_name='Lamparas')
+            if len(data['roedores']) > 0:
+                data['roedores'].to_excel(writer, index=False, sheet_name='Roedores')
+        combined_output.seek(0)
+        
+        st.download_button(
+            label="📦 Descargar Todo (Excel con múltiples hojas)",
+            data=combined_output.getvalue(),
+            file_name=f"Datos_Completos_{date_range_str}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            type="primary"
+        )
+        
+        # Show data previews
+        with st.expander("👁️ Ver Previsualización de Datos"):
+            tab_prev, tab_lamp, tab_roed = st.tabs(["Preventivos", "Lámparas", "Roedores"])
+            
+            with tab_prev:
+                if len(data['preventivos']) > 0:
+                    st.dataframe(data['preventivos'].head(), use_container_width=True)
+                else:
+                    st.info("No hay datos de preventivos para el rango seleccionado")
+            
+            with tab_lamp:
+                if len(data['lamparas']) > 0:
+                    st.dataframe(data['lamparas'].head(), use_container_width=True)
+                else:
+                    st.info("No hay datos de lámparas para el rango seleccionado")
+            
+            with tab_roed:
+                if len(data['roedores']) > 0:
+                    st.dataframe(data['roedores'].head(), use_container_width=True)
+                else:
+                    st.info("No hay datos de roedores para el rango seleccionado")
+
+
+def report_generation_tab():
+    """Original Report Generation Tab functionality"""
     # Configuración de barra lateral - PASO 1: Configuración de Parámetros
     with st.sidebar:
         # Logo centrado y más grande en la parte superior del sidebar
@@ -135,6 +349,7 @@ def main():
                 
                 if len(sede_data) > 0 and 'Fecha' in sede_data.columns:
                     # Convertir fechas a datetime
+                    sede_data = sede_data.copy()
                     sede_data['Fecha_dt'] = pd.to_datetime(sede_data['Fecha'], errors='coerce')
                     api_min_date = sede_data['Fecha_dt'].min().date()
                     api_max_date = sede_data['Fecha_dt'].max().date()
@@ -490,6 +705,23 @@ def main():
             st.info("⚙️ Establece la configuración")
         else:
             st.info("🚀 Genera un reporte para habilitar la descarga")
+
+
+def main():
+    # Initialize session state
+    init_session_state()
+    
+    # Header
+    st.markdown('<h1 class="main-header">🏥 Generador de Reportes de Control de Plagas San Vicente Fundación</h1>', unsafe_allow_html=True)
+    
+    # Create tabs
+    tab1, tab2 = st.tabs(["📈 Generación de Reportes", "📊 Exportar Datos"])
+    
+    with tab1:
+        report_generation_tab()
+    
+    with tab2:
+        data_export_tab()
 
 
 if __name__ == "__main__":
