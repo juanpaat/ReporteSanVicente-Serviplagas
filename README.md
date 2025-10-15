@@ -16,9 +16,10 @@ Sistema automatizado para generar reportes de control de plagas en hospitales (M
 ### 📊 Exportación de Datos Excel
 - **Filtros independientes**: Rangos de fechas separados del reporte
 - **Procesamiento completo**: Datos de preventivos, lámparas y roedores
-- **Múltiples formatos**: Descargas individuales o archivo combinado
+- **Filtrado por sede**: Datos separados automáticamente por Medellín y Rionegro
+- **Múltiples formatos**: 6 descargas individuales + archivo combinado
 - **Formato Excel**: Compatible con todas las versiones (.xlsx)
-- **Previsualización**: Ver datos antes de descargar
+- **Previsualización organizada**: Ver datos por tipo y sede antes de descargar
 
 ### 🔧 Interfaz de Línea de Comandos
 - **Procesamiento automatizado**: Ejecución por scripts
@@ -106,19 +107,21 @@ ReporteSanVicente-Serviplagas/
 ### Tab 1: 📈 Generación de Reportes
 1. **Seleccionar Sede**: Medellín o Rionegro
 2. **Elegir Fechas**: Rango para el análisis
-3. **Subir Plantilla** (opcional): Plantilla Word personalizada
-4. **Establecer Configuración**: Confirmar parámetros
-5. **Generar Reporte**: Crear documento Word profesional
-6. **Descargar**: Archivo Word con gráficos y tablas
+3. **Establecer Configuración**: Confirmar parámetros (usa plantilla por defecto)
+4. **Generar Reporte**: Crear documento Word profesional
+5. **Descargar**: Archivo Word con gráficos y tablas
 
 ### Tab 2: 📊 Exportar Datos
 1. **Seleccionar Fechas**: Rango independiente del reporte
-2. **Cargar y Procesar**: Obtener y procesar datos de APIs
-3. **Ver Métricas**: Cantidad de registros por tipo
+2. **Cargar y Procesar**: Obtener y procesar datos de las 3 APIs
+3. **Ver Métricas**: Cantidad de registros por tipo y sede
 4. **Descargar Excel**: 
-   - Individual: Preventivos, Lámparas, Roedores
-   - Combinado: Archivo con múltiples hojas
-5. **Previsualizar** (opcional): Ver datos antes de descargar
+   - Individual: 6 opciones (3 tipos × 2 sedes)
+     - Preventivos Medellín/Rionegro
+     - Roedores Medellín/Rionegro  
+     - Lámparas Medellín/Rionegro
+   - Combinado: Archivo con hasta 6 hojas Excel
+5. **Previsualizar**: Ver muestra de datos organizados por sede y tipo
 
 ## 📊 Visualizaciones y Reportes
 
@@ -193,10 +196,11 @@ ReporteSanVicente-Serviplagas/
 4. **Descargas**: Los archivos se guardan en la carpeta de descargas del navegador
 
 ### Flujo de Trabajo Recomendado
-1. **Primero**: Usar tab "Exportar Datos" para revisar datos disponibles
-2. **Segundo**: Generar reportes Word con datos confirmados
-3. **Análisis**: Usar archivos Excel para análisis detallados
-4. **Presentación**: Usar reportes Word para presentaciones formales
+1. **Primero**: Usar tab "Exportar Datos" para revisar datos disponibles por sede
+2. **Segundo**: Generar reportes Word con datos confirmados para una sede específica
+3. **Análisis**: Usar archivos Excel individuales por tipo y sede para análisis detallados
+4. **Comparación**: Usar archivo combinado para análisis comparativos entre sedes
+5. **Presentación**: Usar reportes Word para presentaciones formales
 
 ## 🚀 Desarrollo
 
@@ -216,8 +220,10 @@ ReporteSanVicente-Serviplagas/
 
 ### Estado Actual
 - ✅ **Aplicación Web**: Completamente funcional
-- ✅ **Generación de Reportes**: Documentos Word profesionales
-- ✅ **Exportación de Datos**: Archivos Excel con múltiples formatos
+- ✅ **Generación de Reportes**: Documentos Word profesionales por sede
+- ✅ **Exportación de Datos**: Archivos Excel individuales y combinados
+- ✅ **Procesamiento Completo**: Los 3 tipos de datos (preventivos, roedores, lámparas)
+- ✅ **Filtrado por Sede**: Separación automática Medellín/Rionegro
 - ✅ **Filtros de Fecha**: Independientes y flexibles
 - ✅ **Interfaz de Usuario**: Intuitiva y fácil de usar
 

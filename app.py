@@ -136,7 +136,7 @@ def data_export_tab():
         with st.spinner("Cargando y procesando datos..."):
             try:
                 # Load API data
-                prev_data, _, _ = cached_load_api_data()
+                prev_data, roed_data, lamp_data = cached_load_api_data()
                 
                 # Filter data by date range for all datasets
                 def filter_by_date_range(df, start_date, end_date):
@@ -161,36 +161,72 @@ def data_export_tab():
                     
                     return df_filtered
                 
-                # Filter preventivos dataset only
+                # Filter all datasets by date range
                 prev_filtered = filter_by_date_range(prev_data, export_start_date, export_end_date)
+                roed_filtered = filter_by_date_range(roed_data, export_start_date, export_end_date)
+                lamp_filtered = filter_by_date_range(lamp_data, export_start_date, export_end_date)
                 
                 # Process data using the pipeline functions
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
                 status_text.text("🔄 Procesando datos de preventivos...")
-                progress_bar.progress(30)
+                progress_bar.progress(20)
                 df_prev, df_prev_full = procesar_preventivos(prev_filtered)
                 
-                status_text.text("🔄 Filtrando datos por sede...")
-                progress_bar.progress(70)
+                status_text.text("🔄 Procesando datos de roedores...")
+                progress_bar.progress(40)
+                df_roed, df_roed_full = procesar_roedores(roed_filtered)
                 
-                # Filter by "Sede" column
+                status_text.text("🔄 Procesando datos de lámparas...")
+                progress_bar.progress(60)
+                df_lamp, df_lamp_full = procesar_lamparas(lamp_filtered)
+                
+                status_text.text("🔄 Filtrando datos por sede...")
+                progress_bar.progress(80)
+                
+                # Filter by "Sede" column for each dataset
+                # Preventivos
                 if 'Sede' in df_prev.columns:
-                    df_medellin = df_prev[df_prev['Sede'] == 'Medellín'].copy()
-                    df_rionegro = df_prev[df_prev['Sede'] == 'Rionegro'].copy()
+                    prev_medellin = df_prev[df_prev['Sede'] == 'Medellín'].copy()
+                    prev_rionegro = df_prev[df_prev['Sede'] == 'Rionegro'].copy()
                 else:
-                    # Fallback if no Sede column
-                    df_medellin = df_prev.copy()
-                    df_rionegro = pd.DataFrame()
+                    prev_medellin = df_prev.copy()
+                    prev_rionegro = pd.DataFrame()
+                
+                # Roedores
+                if 'Sede' in df_roed.columns:
+                    roed_medellin = df_roed[df_roed['Sede'] == 'Medellín'].copy()
+                    roed_rionegro = df_roed[df_roed['Sede'] == 'Rionegro'].copy()
+                else:
+                    roed_medellin = df_roed.copy()
+                    roed_rionegro = pd.DataFrame()
+                
+                # Lámparas
+                if 'Sede' in df_lamp.columns:
+                    lamp_medellin = df_lamp[df_lamp['Sede'] == 'Medellín'].copy()
+                    lamp_rionegro = df_lamp[df_lamp['Sede'] == 'Rionegro'].copy()
+                else:
+                    lamp_medellin = df_lamp.copy()
+                    lamp_rionegro = pd.DataFrame()
                 
                 status_text.text("✅ ¡Procesamiento completado!")
                 progress_bar.progress(100)
                 
                 # Store processed data in session state
                 st.session_state.export_processed_data = {
-                    'medellin': df_medellin,
-                    'rionegro': df_rionegro,
+                    'preventivos': {
+                        'medellin': prev_medellin,
+                        'rionegro': prev_rionegro
+                    },
+                    'roedores': {
+                        'medellin': roed_medellin,
+                        'rionegro': roed_rionegro
+                    },
+                    'lamparas': {
+                        'medellin': lamp_medellin,
+                        'rionegro': lamp_rionegro
+                    },
                     'date_range': (export_start_date, export_end_date)
                 }
                 st.session_state.export_data_loaded = True
@@ -214,31 +250,97 @@ def data_export_tab():
         data = st.session_state.export_processed_data
         date_range_str = f"{data['date_range'][0]}_{data['date_range'][1]}"
         
-        # Display data summaries
+        # Display data summaries for each dataset
         col1, col2 = st.columns(2)
         
-        with col1:
-            st.metric("🏢 Medellín", len(data['medellin']))
-            if len(data['medellin']) > 0:
-                excel_medellin = convert_df_to_excel(data['medellin'], "Preventivos_Medellin")
+        # Preventivos section
+        st.markdown("#### 🛡️ Preventivos")
+        col_prev1, col_prev2 = st.columns(2)
+        
+        with col_prev1:
+            st.metric("🏢 Medellín", len(data['preventivos']['medellin']))
+            if len(data['preventivos']['medellin']) > 0:
+                excel_prev_med = convert_df_to_excel(data['preventivos']['medellin'], "Preventivos_Medellin")
                 st.download_button(
-                    label="⬇️ Descargar Medellín",
-                    data=excel_medellin,
+                    label="⬇️ Descargar Preventivos Medellín",
+                    data=excel_prev_med,
                     file_name=f"Preventivos_Medellin_{date_range_str}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
+                    use_container_width=True,
+                    key="prev_med"
                 )
         
-        with col2:
-            st.metric("🏢 Rionegro", len(data['rionegro']))
-            if len(data['rionegro']) > 0:
-                excel_rionegro = convert_df_to_excel(data['rionegro'], "Preventivos_Rionegro")
+        with col_prev2:
+            st.metric("🏢 Rionegro", len(data['preventivos']['rionegro']))
+            if len(data['preventivos']['rionegro']) > 0:
+                excel_prev_rio = convert_df_to_excel(data['preventivos']['rionegro'], "Preventivos_Rionegro")
                 st.download_button(
-                    label="⬇️ Descargar Rionegro",
-                    data=excel_rionegro,
+                    label="⬇️ Descargar Preventivos Rionegro",
+                    data=excel_prev_rio,
                     file_name=f"Preventivos_Rionegro_{date_range_str}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
+                    use_container_width=True,
+                    key="prev_rio"
+                )
+        
+        # Roedores section
+        st.markdown("#### 🐭 Roedores")
+        col_roed1, col_roed2 = st.columns(2)
+        
+        with col_roed1:
+            st.metric("🏢 Medellín", len(data['roedores']['medellin']))
+            if len(data['roedores']['medellin']) > 0:
+                excel_roed_med = convert_df_to_excel(data['roedores']['medellin'], "Roedores_Medellin")
+                st.download_button(
+                    label="⬇️ Descargar Roedores Medellín",
+                    data=excel_roed_med,
+                    file_name=f"Roedores_Medellin_{date_range_str}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="roed_med"
+                )
+        
+        with col_roed2:
+            st.metric("🏢 Rionegro", len(data['roedores']['rionegro']))
+            if len(data['roedores']['rionegro']) > 0:
+                excel_roed_rio = convert_df_to_excel(data['roedores']['rionegro'], "Roedores_Rionegro")
+                st.download_button(
+                    label="⬇️ Descargar Roedores Rionegro",
+                    data=excel_roed_rio,
+                    file_name=f"Roedores_Rionegro_{date_range_str}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="roed_rio"
+                )
+        
+        # Lámparas section
+        st.markdown("#### 💡 Lámparas")
+        col_lamp1, col_lamp2 = st.columns(2)
+        
+        with col_lamp1:
+            st.metric("🏢 Medellín", len(data['lamparas']['medellin']))
+            if len(data['lamparas']['medellin']) > 0:
+                excel_lamp_med = convert_df_to_excel(data['lamparas']['medellin'], "Lamparas_Medellin")
+                st.download_button(
+                    label="⬇️ Descargar Lámparas Medellín",
+                    data=excel_lamp_med,
+                    file_name=f"Lamparas_Medellin_{date_range_str}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="lamp_med"
+                )
+        
+        with col_lamp2:
+            st.metric("🏢 Rionegro", len(data['lamparas']['rionegro']))
+            if len(data['lamparas']['rionegro']) > 0:
+                excel_lamp_rio = convert_df_to_excel(data['lamparas']['rionegro'], "Lamparas_Rionegro")
+                st.download_button(
+                    label="⬇️ Descargar Lámparas Rionegro",
+                    data=excel_lamp_rio,
+                    file_name=f"Lamparas_Rionegro_{date_range_str}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="lamp_rio"
                 )
         
         # Combined download
@@ -248,16 +350,29 @@ def data_export_tab():
         # Create combined Excel file with multiple sheets
         combined_output = BytesIO()
         with pd.ExcelWriter(combined_output, engine='xlsxwriter') as writer:
-            if len(data['medellin']) > 0:
-                data['medellin'].to_excel(writer, index=False, sheet_name='Preventivos_Medellin')
-            if len(data['rionegro']) > 0:
-                data['rionegro'].to_excel(writer, index=False, sheet_name='Preventivos_Rionegro')
+            # Preventivos sheets
+            if len(data['preventivos']['medellin']) > 0:
+                data['preventivos']['medellin'].to_excel(writer, index=False, sheet_name='Preventivos_Medellin')
+            if len(data['preventivos']['rionegro']) > 0:
+                data['preventivos']['rionegro'].to_excel(writer, index=False, sheet_name='Preventivos_Rionegro')
+            
+            # Roedores sheets
+            if len(data['roedores']['medellin']) > 0:
+                data['roedores']['medellin'].to_excel(writer, index=False, sheet_name='Roedores_Medellin')
+            if len(data['roedores']['rionegro']) > 0:
+                data['roedores']['rionegro'].to_excel(writer, index=False, sheet_name='Roedores_Rionegro')
+            
+            # Lámparas sheets
+            if len(data['lamparas']['medellin']) > 0:
+                data['lamparas']['medellin'].to_excel(writer, index=False, sheet_name='Lamparas_Medellin')
+            if len(data['lamparas']['rionegro']) > 0:
+                data['lamparas']['rionegro'].to_excel(writer, index=False, sheet_name='Lamparas_Rionegro')
         combined_output.seek(0)
         
         st.download_button(
             label="📦 Descargar Todo (Excel con múltiples hojas)",
             data=combined_output.getvalue(),
-            file_name=f"Preventivos_Completo_{date_range_str}.xlsx",
+            file_name=f"Datos_Completos_{date_range_str}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
             type="primary"
@@ -268,16 +383,42 @@ def data_export_tab():
         tab_med, tab_rio = st.tabs(["Medellín", "Rionegro"])
         
         with tab_med:
-            if len(data['medellin']) > 0:
-                st.dataframe(data['medellin'].head(10), use_container_width=True)
+            st.markdown("**🛡️ Preventivos - Medellín**")
+            if len(data['preventivos']['medellin']) > 0:
+                st.dataframe(data['preventivos']['medellin'].head(5), use_container_width=True)
             else:
-                st.info("No hay datos de Medellín para el rango seleccionado")
+                st.info("No hay datos de preventivos para Medellín en el rango seleccionado")
+            
+            st.markdown("**🐭 Roedores - Medellín**")
+            if len(data['roedores']['medellin']) > 0:
+                st.dataframe(data['roedores']['medellin'].head(5), use_container_width=True)
+            else:
+                st.info("No hay datos de roedores para Medellín en el rango seleccionado")
+            
+            st.markdown("**💡 Lámparas - Medellín**")
+            if len(data['lamparas']['medellin']) > 0:
+                st.dataframe(data['lamparas']['medellin'].head(5), use_container_width=True)
+            else:
+                st.info("No hay datos de lámparas para Medellín en el rango seleccionado")
         
         with tab_rio:
-            if len(data['rionegro']) > 0:
-                st.dataframe(data['rionegro'].head(10), use_container_width=True)
+            st.markdown("**🛡️ Preventivos - Rionegro**")
+            if len(data['preventivos']['rionegro']) > 0:
+                st.dataframe(data['preventivos']['rionegro'].head(5), use_container_width=True)
             else:
-                st.info("No hay datos de Rionegro para el rango seleccionado")
+                st.info("No hay datos de preventivos para Rionegro en el rango seleccionado")
+            
+            st.markdown("**🐭 Roedores - Rionegro**")
+            if len(data['roedores']['rionegro']) > 0:
+                st.dataframe(data['roedores']['rionegro'].head(5), use_container_width=True)
+            else:
+                st.info("No hay datos de roedores para Rionegro en el rango seleccionado")
+            
+            st.markdown("**💡 Lámparas - Rionegro**")
+            if len(data['lamparas']['rionegro']) > 0:
+                st.dataframe(data['lamparas']['rionegro'].head(5), use_container_width=True)
+            else:
+                st.info("No hay datos de lámparas para Rionegro en el rango seleccionado")
 def report_generation_tab():
     """Original Report Generation Tab functionality"""
     # Configuración de barra lateral - PASO 1: Configuración de Parámetros
