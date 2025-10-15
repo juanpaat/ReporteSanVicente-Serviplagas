@@ -1,7 +1,3 @@
-"""
-Funciones de generación de reportes para la aplicación Streamlit y script principal
-"""
-
 import os
 import pandas as pd
 from dotenv import load_dotenv
@@ -289,7 +285,7 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
         # Filtrar por rango de fechas en los datos originales primero
         if start_date and end_date and 'Fecha' in sede_data.columns:
             # Convertir fechas a datetime
-            sede_data['Fecha_temp'] = pd.to_datetime(sede_data['Fecha'], errors='coerce')
+            sede_data.loc[:,'Fecha_temp'] = pd.to_datetime(sede_data['Fecha'], errors='coerce')
             start_datetime = pd.to_datetime(start_date)
             end_datetime = pd.to_datetime(end_date)
             
