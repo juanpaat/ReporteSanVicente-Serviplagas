@@ -284,19 +284,19 @@ def data_export_tab():
             
             with tab_prev:
                 if len(data['preventivos']) > 0:
-                    st.dataframe(data['preventivos'].head(), use_container_width=True)
+                    st.dataframe(data['preventivos'].head(10), use_container_width=True)
                 else:
                     st.info("No hay datos de preventivos para el rango seleccionado")
             
             with tab_lamp:
                 if len(data['lamparas']) > 0:
-                    st.dataframe(data['lamparas'].head(), use_container_width=True)
+                    st.dataframe(data['lamparas'].head(10), use_container_width=True)
                 else:
                     st.info("No hay datos de lámparas para el rango seleccionado")
             
             with tab_roed:
                 if len(data['roedores']) > 0:
-                    st.dataframe(data['roedores'].head(), use_container_width=True)
+                    st.dataframe(data['roedores'].head(10), use_container_width=True)
                 else:
                     st.info("No hay datos de roedores para el rango seleccionado")
 
