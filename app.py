@@ -86,8 +86,6 @@ def init_session_state():
         st.session_state.selected_location = None
     if 'date_range' not in st.session_state:
         st.session_state.date_range = None
-    if 'template_file' not in st.session_state:
-        st.session_state.template_file = None
     
     # Data export tab
     if 'export_data_loaded' not in st.session_state:
@@ -138,7 +136,7 @@ def data_export_tab():
         with st.spinner("Cargando y procesando datos..."):
             try:
                 # Load API data
-                prev_data, roed_data, lamp_data = cached_load_api_data()
+                prev_data, _, _ = cached_load_api_data()
                 
                 # Filter data by date range for all datasets
                 def filter_by_date_range(df, start_date, end_date):
@@ -163,35 +161,36 @@ def data_export_tab():
                     
                     return df_filtered
                 
-                # Filter all datasets
+                # Filter preventivos dataset only
                 prev_filtered = filter_by_date_range(prev_data, export_start_date, export_end_date)
-                roed_filtered = filter_by_date_range(roed_data, export_start_date, export_end_date)
-                lamp_filtered = filter_by_date_range(lamp_data, export_start_date, export_end_date)
                 
                 # Process data using the pipeline functions
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
                 status_text.text("🔄 Procesando datos de preventivos...")
-                progress_bar.progress(20)
+                progress_bar.progress(30)
                 df_prev, df_prev_full = procesar_preventivos(prev_filtered)
                 
-                status_text.text("🔄 Procesando datos de lámparas...")
-                progress_bar.progress(50)
-                df_lamp, df_lamp_full = procesar_lamparas(lamp_filtered)
+                status_text.text("🔄 Filtrando datos por sede...")
+                progress_bar.progress(70)
                 
-                status_text.text("🔄 Procesando datos de roedores...")
-                progress_bar.progress(80)
-                df_roed, df_roed_full = procesar_roedores(roed_filtered)
+                # Filter by "Sede" column
+                if 'Sede' in df_prev.columns:
+                    df_medellin = df_prev[df_prev['Sede'] == 'Medellín'].copy()
+                    df_rionegro = df_prev[df_prev['Sede'] == 'Rionegro'].copy()
+                else:
+                    # Fallback if no Sede column
+                    df_medellin = df_prev.copy()
+                    df_rionegro = pd.DataFrame()
                 
                 status_text.text("✅ ¡Procesamiento completado!")
                 progress_bar.progress(100)
                 
                 # Store processed data in session state
                 st.session_state.export_processed_data = {
-                    'preventivos': df_prev,
-                    'lamparas': df_lamp,
-                    'roedores': df_roed,
+                    'medellin': df_medellin,
+                    'rionegro': df_rionegro,
                     'date_range': (export_start_date, export_end_date)
                 }
                 st.session_state.export_data_loaded = True
@@ -216,40 +215,28 @@ def data_export_tab():
         date_range_str = f"{data['date_range'][0]}_{data['date_range'][1]}"
         
         # Display data summaries
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
         
         with col1:
-            st.metric("🛡️ Preventivos", len(data['preventivos']))
-            if len(data['preventivos']) > 0:
-                excel_prev = convert_df_to_excel(data['preventivos'], "Preventivos")
+            st.metric("🏢 Medellín", len(data['medellin']))
+            if len(data['medellin']) > 0:
+                excel_medellin = convert_df_to_excel(data['medellin'], "Preventivos_Medellin")
                 st.download_button(
-                    label="⬇️ Descargar Preventivos",
-                    data=excel_prev,
-                    file_name=f"Preventivos_{date_range_str}.xlsx",
+                    label="⬇️ Descargar Medellín",
+                    data=excel_medellin,
+                    file_name=f"Preventivos_Medellin_{date_range_str}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
         
         with col2:
-            st.metric("💡 Lámparas", len(data['lamparas']))
-            if len(data['lamparas']) > 0:
-                excel_lamp = convert_df_to_excel(data['lamparas'], "Lamparas")
+            st.metric("🏢 Rionegro", len(data['rionegro']))
+            if len(data['rionegro']) > 0:
+                excel_rionegro = convert_df_to_excel(data['rionegro'], "Preventivos_Rionegro")
                 st.download_button(
-                    label="⬇️ Descargar Lámparas",
-                    data=excel_lamp,
-                    file_name=f"Lamparas_{date_range_str}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
-                )
-        
-        with col3:
-            st.metric("🐭 Roedores", len(data['roedores']))
-            if len(data['roedores']) > 0:
-                excel_roed = convert_df_to_excel(data['roedores'], "Roedores")
-                st.download_button(
-                    label="⬇️ Descargar Roedores",
-                    data=excel_roed,
-                    file_name=f"Roedores_{date_range_str}.xlsx",
+                    label="⬇️ Descargar Rionegro",
+                    data=excel_rionegro,
+                    file_name=f"Preventivos_Rionegro_{date_range_str}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
@@ -261,46 +248,36 @@ def data_export_tab():
         # Create combined Excel file with multiple sheets
         combined_output = BytesIO()
         with pd.ExcelWriter(combined_output, engine='xlsxwriter') as writer:
-            if len(data['preventivos']) > 0:
-                data['preventivos'].to_excel(writer, index=False, sheet_name='Preventivos')
-            if len(data['lamparas']) > 0:
-                data['lamparas'].to_excel(writer, index=False, sheet_name='Lamparas')
-            if len(data['roedores']) > 0:
-                data['roedores'].to_excel(writer, index=False, sheet_name='Roedores')
+            if len(data['medellin']) > 0:
+                data['medellin'].to_excel(writer, index=False, sheet_name='Preventivos_Medellin')
+            if len(data['rionegro']) > 0:
+                data['rionegro'].to_excel(writer, index=False, sheet_name='Preventivos_Rionegro')
         combined_output.seek(0)
         
         st.download_button(
             label="📦 Descargar Todo (Excel con múltiples hojas)",
             data=combined_output.getvalue(),
-            file_name=f"Datos_Completos_{date_range_str}.xlsx",
+            file_name=f"Preventivos_Completo_{date_range_str}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
             type="primary"
         )
         
         # Show data previews
-        with st.expander("👁️ Ver Previsualización de Datos"):
-            tab_prev, tab_lamp, tab_roed = st.tabs(["Preventivos", "Lámparas", "Roedores"])
-            
-            with tab_prev:
-                if len(data['preventivos']) > 0:
-                    st.dataframe(data['preventivos'].head(10), use_container_width=True)
-                else:
-                    st.info("No hay datos de preventivos para el rango seleccionado")
-            
-            with tab_lamp:
-                if len(data['lamparas']) > 0:
-                    st.dataframe(data['lamparas'].head(10), use_container_width=True)
-                else:
-                    st.info("No hay datos de lámparas para el rango seleccionado")
-            
-            with tab_roed:
-                if len(data['roedores']) > 0:
-                    st.dataframe(data['roedores'].head(10), use_container_width=True)
-                else:
-                    st.info("No hay datos de roedores para el rango seleccionado")
-
-
+        st.markdown("### 👁️ Previsualización de Datos")
+        tab_med, tab_rio = st.tabs(["Medellín", "Rionegro"])
+        
+        with tab_med:
+            if len(data['medellin']) > 0:
+                st.dataframe(data['medellin'].head(10), use_container_width=True)
+            else:
+                st.info("No hay datos de Medellín para el rango seleccionado")
+        
+        with tab_rio:
+            if len(data['rionegro']) > 0:
+                st.dataframe(data['rionegro'].head(10), use_container_width=True)
+            else:
+                st.info("No hay datos de Rionegro para el rango seleccionado")
 def report_generation_tab():
     """Original Report Generation Tab functionality"""
     # Configuración de barra lateral - PASO 1: Configuración de Parámetros
@@ -389,15 +366,6 @@ def report_generation_tab():
             st.warning("⚠️ Por favor selecciona una fecha inicial y una fecha final.")
             start_date, end_date = default_dates
         
-        # Plantilla Word
-        st.subheader("📄 Plantilla Word")
-        template_file = st.file_uploader(
-            "Plantilla Word Personalizada (opcional):",
-            type=['docx'],
-            help="Subir una plantilla Word personalizada. Si no se proporciona, se usará la plantilla por defecto.",
-            disabled=st.session_state.config_set
-        )
-        
         # Botón de configuración
         st.markdown("---")
         if not st.session_state.config_set:
@@ -407,7 +375,6 @@ def report_generation_tab():
                     st.session_state.config_set = True
                     st.session_state.selected_location = selected_location
                     st.session_state.date_range = date_range
-                    st.session_state.template_file = template_file
                     st.rerun()
                 else:
                     st.error("⚠️ Por favor selecciona un rango de fechas válido (fecha inicial y final).")
@@ -416,10 +383,7 @@ def report_generation_tab():
             st.markdown("**Configuración Actual:**")
             st.write(f"🏢 **Sede:** {st.session_state.selected_location}")
             st.write(f"📅 **Fechas:** {st.session_state.date_range[0]} a {st.session_state.date_range[1]}")
-            if st.session_state.template_file:
-                st.write(f"📄 **Plantilla:** {st.session_state.template_file.name}")
-            else:
-                st.write(f"📄 **Plantilla:** Plantilla por defecto")
+            st.write(f"📄 **Plantilla:** Plantilla por defecto")
             
             if st.button("🔄 Nueva Configuración", use_container_width=True):
                 # Resetear estado para nueva configuración
@@ -430,103 +394,72 @@ def report_generation_tab():
                 st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Sección de carga de datos
-        st.markdown("---")
-        st.subheader("📊 Estado de Datos")
-        
-        if st.session_state.data_loaded:
-            st.success("✅ Datos cargados")
-        else:
-            st.warning("⚠️ Datos no cargados")
-        
-        if st.button("🔄 Cargar/Actualizar Datos", use_container_width=True):
-            with st.spinner("Cargando datos desde APIs..."):
-                try:
-                    # Limpiar cache y cargar datos frescos
-                    cached_load_api_data.clear()
-                    prev_data, roed_data, lamp_data = cached_load_api_data()
-                    st.session_state.data_loaded = True
-                    st.session_state.api_data = (prev_data, roed_data, lamp_data)
-                    st.success("✅ ¡Datos cargados exitosamente!")
-                    # Si había configuración establecida, resetear para que recalcule las fechas
-                    if st.session_state.config_set:
-                        st.session_state.config_set = False
-                        st.info("🔄 Reconfigure los parámetros con los datos actualizados.")
-                except Exception as e:
-                    st.error(f"❌ Error cargando datos: {str(e)}")
-                    st.session_state.data_loaded = False
     
-    # Área de contenido principal
-    # PASO 2: Cargar datos automáticamente en la primera ejecución
+    # Auto-load data if not loaded
     if not st.session_state.data_loaded:
-            st.subheader("📊 Carga de Datos")
-            st.info("👈 Primero necesitas cargar los datos. Usa el botón 'Cargar/Actualizar Datos' en la barra lateral.")
-            
-            with st.spinner("Cargando datos iniciales..."):
-                try:
-                    prev_data, roed_data, lamp_data = cached_load_api_data()
-                    st.session_state.data_loaded = True
-                    st.session_state.api_data = (prev_data, roed_data, lamp_data)
-                    st.success("✅ ¡Datos iniciales cargados exitosamente!")
-                    st.rerun()
-                except Exception as e:
-                    error_msg = str(e)
+        with st.spinner("Cargando datos iniciales..."):
+            try:
+                prev_data, roed_data, lamp_data = cached_load_api_data()
+                st.session_state.data_loaded = True
+                st.session_state.api_data = (prev_data, roed_data, lamp_data)
+                st.rerun()
+            except Exception as e:
+                error_msg = str(e)
+                
+                # Detectar si es un error de configuración de APIs
+                if ("Faltan las siguientes configuraciones de API" in error_msg or 
+                    "prev_API" in error_msg or "roe_API" in error_msg or "lam_API" in error_msg):
                     
-                    # Detectar si es un error de configuración de APIs
-                    if ("Faltan las siguientes configuraciones de API" in error_msg or 
-                        "prev_API" in error_msg or "roe_API" in error_msg or "lam_API" in error_msg):
+                    # Detectar el entorno
+                    is_streamlit_cloud = (
+                        os.getenv('STREAMLIT_SHARING_MODE') or 
+                        os.getenv('STREAMLIT_CLOUD') or
+                        'streamlit.app' in os.getenv('HOSTNAME', '') or
+                        'share.streamlit.io' in os.getenv('HOSTNAME', '')
+                    )
+                    
+                    if is_streamlit_cloud:
+                        st.error("❌ **Configuración Requerida**: Faltan los secretos de API en Streamlit Cloud")
+                        st.info("""
+                        **Para configurar en Streamlit Cloud:**
                         
-                        # Detectar el entorno
-                        is_streamlit_cloud = (
-                            os.getenv('STREAMLIT_SHARING_MODE') or 
-                            os.getenv('STREAMLIT_CLOUD') or
-                            'streamlit.app' in os.getenv('HOSTNAME', '') or
-                            'share.streamlit.io' in os.getenv('HOSTNAME', '')
-                        )
-                        
-                        if is_streamlit_cloud:
-                            st.error("❌ **Configuración Requerida**: Faltan los secretos de API en Streamlit Cloud")
-                            st.info("""
-                            **Para configurar en Streamlit Cloud:**
-                            
-                            1. Ve a la configuración de tu aplicación en Streamlit Cloud
-                            2. Agrega los siguientes secretos en el "Secrets management":
-                            ```toml
-                            prev_API = "https://tu-endpoint-preventivos.com"
-                            roe_API = "https://tu-endpoint-roedores.com"  
-                            lam_API = "https://tu-endpoint-lamparas.com"
-                            ```
-                            3. Guarda y reinicia la aplicación
-                            """)
-                        else:
-                            st.error("❌ **Configuración Requerida**: Faltan las variables de entorno de API")
-                            st.info("""
-                            **Para configurar en desarrollo local:**
-                            
-                            1. Crea un archivo `.env` en el directorio del proyecto (si no existe)
-                            2. Agrega las siguientes líneas con tus endpoints reales:
-                            ```
-                            prev_API=https://tu-endpoint-preventivos.com
-                            roe_API=https://tu-endpoint-roedores.com  
-                            lam_API=https://tu-endpoint-lamparas.com
-                            ```
-                            3. Reinicia la aplicación
-                            """)
+                        1. Ve a la configuración de tu aplicación en Streamlit Cloud
+                        2. Agrega los siguientes secretos en el "Secrets management":
+                        ```toml
+                        prev_API = "https://tu-endpoint-preventivos.com"
+                        roe_API = "https://tu-endpoint-roedores.com"  
+                        lam_API = "https://tu-endpoint-lamparas.com"
+                        ```
+                        3. Guarda y reinicia la aplicación
+                        """)
                     else:
-                        st.error(f"❌ Error cargando datos iniciales: {error_msg}")
+                        st.error("❌ **Configuración Requerida**: Faltan las variables de entorno de API")
+                        st.info("""
+                        **Para configurar en desarrollo local:**
                         
-                        with st.expander("🔍 Solución de Problemas"):
-                            st.markdown("""
-                            **Problemas comunes:**
-                            - Verifica tu conexión a internet
-                            - Confirma que los endpoints de API sean accesibles
-                            - Asegúrate que los endpoints de API retornen datos en el formato esperado
-                            - Verifica si se requiere autenticación para las APIs
-                            - Para desarrollo local: revisa tu archivo `.env`
-                            - Para Streamlit Cloud: revisa la configuración de secretos
-                            """)
-                    st.stop()
+                        1. Crea un archivo `.env` en el directorio del proyecto (si no existe)
+                        2. Agrega las siguientes líneas con tus endpoints reales:
+                        ```
+                        prev_API=https://tu-endpoint-preventivos.com
+                        roe_API=https://tu-endpoint-roedores.com  
+                        lam_API=https://tu-endpoint-lamparas.com
+                        ```
+                        3. Reinicia la aplicación
+                        """)
+                else:
+                    st.error(f"❌ Error cargando datos iniciales: {error_msg}")
+                    
+                    with st.expander("🔍 Solución de Problemas"):
+                        st.markdown("""
+                        **Problemas comunes:**
+                        - Verifica tu conexión a internet
+                        - Confirma que los endpoints de API sean accesibles
+                        - Asegúrate que los endpoints de API retornen datos en el formato esperado
+                        - Verifica si se requiere autenticación para las APIs
+                        - Para desarrollo local: revisa tu archivo `.env`
+                        - Para Streamlit Cloud: revisa la configuración de secretos
+                        """)
+                st.stop()
     
     # PASO 3: Mostrar configuración y resumen de datos
     elif not st.session_state.config_set:
@@ -539,8 +472,7 @@ def report_generation_tab():
             
             1. **Selecciona la Sede** hospitalaria (Medellín o Rionegro)
             2. **Elige el Rango de Fechas** para el análisis
-            3. **Sube una Plantilla Word** personalizada (opcional)
-            4. **Haz clic en 'Establecer Configuración'** para confirmar
+            3. **Haz clic en 'Establecer Configuración'** para confirmar
             """)
     
     # PASO 4: Mostrar resumen de datos y permitir generar reporte
@@ -599,13 +531,8 @@ def report_generation_tab():
                     status_text.text("📄 Creando documento Word...")
                     progress_bar.progress(80)
                     
-                    # Generar reporte
+                    # Generar reporte usando plantilla por defecto
                     template_path = 'Plantilla.docx'
-                    if st.session_state.template_file is not None:
-                        # Guardar plantilla subida temporalmente
-                        with open('temp_template.docx', 'wb') as f:
-                            f.write(st.session_state.template_file.getvalue())
-                        template_path = 'temp_template.docx'
                     
                     buffer = generate_report_for_locations(
                         locations=locations_to_process,
@@ -632,14 +559,6 @@ def report_generation_tab():
                         '<div class="success-message">✅ <strong>¡Reporte generado exitosamente!</strong> Usa el botón de descarga abajo para guardar el archivo.</div>',
                         unsafe_allow_html=True
                     )
-                    
-                    # Limpiar plantilla temporal si se usó
-                    if st.session_state.template_file is not None:
-                        try:
-                            import os
-                            os.remove('temp_template.docx')
-                        except:
-                            pass
                     
                 except Exception as e:
                     progress_bar.progress(0)
@@ -685,10 +604,7 @@ def report_generation_tab():
             with st.expander("� Configuración Usada"):
                 st.write(f"🏢 **Sede:** {st.session_state.selected_location}")
                 st.write(f"📅 **Fechas:** {st.session_state.date_range[0]} a {st.session_state.date_range[1]}")
-                if st.session_state.template_file:
-                    st.write(f"📄 **Plantilla:** {st.session_state.template_file.name}")
-                else:
-                    st.write(f"📄 **Plantilla:** Plantilla por defecto")
+                st.write(f"📄 **Plantilla:** Plantilla por defecto")
         
         # Botón de reinicio para nuevo reporte
         if st.button("🔄 Generar Nuevo Reporte", use_container_width=True):
