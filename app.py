@@ -308,7 +308,7 @@ def report_generation_tab():
         # Logo centrado y más grande en la parte superior del sidebar
         col1, col2, col3 = st.columns([0.5, 3, 0.5])
         with col2:
-            st.image("logo2021.png", use_column_width=True)
+            st.image("logo2021.png", use_container_width=True)
         st.markdown("---")
         
         st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
