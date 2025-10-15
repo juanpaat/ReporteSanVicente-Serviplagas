@@ -30,12 +30,31 @@ pip install -r requirements.txt
 ```
 
 ### 2. Configuration
+
+#### Local Development
 Create a `.env` file with your API endpoints:
 ```env
 prev_API=https://your-api-endpoint/preventivos
 roe_API=https://your-api-endpoint/roedores  
 lam_API=https://your-api-endpoint/lamparas
 ```
+
+#### Streamlit Cloud Deployment
+The application supports both local development and Streamlit Cloud deployment:
+
+1. **Push to GitHub**: Push your code to a public GitHub repository
+2. **Deploy on Streamlit Cloud**: 
+   - Go to [share.streamlit.io](https://share.streamlit.io)
+   - Connect your GitHub repository
+   - Deploy the app using `app.py` as the main file
+3. **Configure Secrets**: In your Streamlit Cloud app settings, add the following in the "Secrets management" section:
+   ```toml
+   prev_API = "https://your-api-endpoint/preventivos"
+   roe_API = "https://your-api-endpoint/roedores"  
+   lam_API = "https://your-api-endpoint/lamparas"
+   ```
+
+**Note**: Never commit your `.env` file to the repository. The application automatically detects the environment and uses the appropriate configuration method.
 
 ### 3. Usage
 

@@ -25,48 +25,69 @@ load_dotenv()
 def load_api_data():
     """
     Cargar datos de las tres APIs
+    Compatible con desarrollo local (.env) y Streamlit Cloud (secrets)
     
     Returns:
         tuple: (prev_data, roed_data, lamp_data)
     """
     try:
-        # Para desarrollo local, siempre usar variables de entorno
-        # Solo usar secretos de Streamlit en despliegue en la nube
+        # Intentar obtener configuración de múltiples fuentes en orden de prioridad:
+        # 1. Variables de entorno (desarrollo local con .env)
+        # 2. Secretos de Streamlit (despliegue en la nube)
+        
+        prev_api = None
+        roe_api = None
+        lam_api = None
+        
+        # Método 1: Intentar variables de entorno primero (desarrollo local)
         prev_api = os.getenv("prev_API")
         roe_api = os.getenv("roe_API") 
         lam_api = os.getenv("lam_API")
         
-        # Si las variables de entorno no están configuradas, intentar secretos de Streamlit (solo en la nube)
+        # Método 2: Si no hay variables de entorno, intentar Streamlit secrets
         if not (prev_api and roe_api and lam_api):
             try:
-                # Verificar si estamos en un entorno Streamlit Cloud
                 import streamlit as st
                 
-                # Solo intentar secretos si estamos en la nube o si realmente existe un archivo de secretos
-                secrets_path = os.path.join(os.getcwd(), '.streamlit', 'secrets.toml')
-                global_secrets_path = os.path.expanduser('~/.streamlit/secrets.toml')
-                
-                if (os.path.exists(secrets_path) or 
-                    os.path.exists(global_secrets_path) or
-                    os.getenv('STREAMLIT_SHARING_MODE') or 
-                    os.getenv('STREAMLIT_CLOUD')):
+                # Detectar si estamos en Streamlit y si hay secretos disponibles
+                if hasattr(st, 'secrets'):
+                    # Usar secretos de Streamlit como respaldo
+                    try:
+                        prev_api = prev_api or st.secrets["prev_API"]
+                    except KeyError:
+                        pass
                     
-                    prev_api = prev_api or st.secrets.get("prev_API")
-                    roe_api = roe_api or st.secrets.get("roe_API")
-                    lam_api = lam_api or st.secrets.get("lam_API")
+                    try:
+                        roe_api = roe_api or st.secrets["roe_API"]
+                    except KeyError:
+                        pass
                     
-            except (ImportError, Exception):
-                # Streamlit no disponible, secretos fallaron, o no hay archivo de secretos
-                # Esto es normal para desarrollo local
+                    try:
+                        lam_api = lam_api or st.secrets["lam_API"]
+                    except KeyError:
+                        pass
+                    
+            except (ImportError, AttributeError) as e:
+                # Streamlit no disponible o secretos no configurados
+                # Esto es normal en desarrollo local sin streamlit
+                print(f"[Info] No se pudieron cargar secretos de Streamlit: {e}")
                 pass
         
         # Validar que tengamos todas las APIs requeridas
+        missing_apis = []
         if not prev_api:
-            raise ValueError("prev_API no encontrada en variables de entorno o secretos de Streamlit")
+            missing_apis.append("prev_API")
         if not roe_api:
-            raise ValueError("roe_API no encontrada en variables de entorno o secretos de Streamlit")
+            missing_apis.append("roe_API")
         if not lam_api:
-            raise ValueError("lam_API no encontrada en variables de entorno o secretos de Streamlit")
+            missing_apis.append("lam_API")
+            
+        if missing_apis:
+            raise ValueError(
+                f"Faltan las siguientes configuraciones de API: {', '.join(missing_apis)}. "
+                f"Para desarrollo local: configura estas variables en tu archivo .env. "
+                f"Para Streamlit Cloud: agrega estas claves en el secrets manager."
+            )
         
         # Cargar datos de APIs con manejo de SSL
         try:

@@ -4,6 +4,7 @@ Aplicación Web Streamlit para Generación de Reportes de Control de Plagas Hosp
 
 import streamlit as st
 import pandas as pd
+import os
 from datetime import datetime, timedelta
 import traceback
 from report_generator import load_api_data, generate_report_for_locations, get_data_summary
@@ -256,18 +257,47 @@ def main():
                     st.rerun()
                 except Exception as e:
                     error_msg = str(e)
-                    if "your-actual-api-endpoint" in error_msg:
-                        st.error("❌ **Configuración Requerida**: Por favor actualiza los endpoints de API en tu archivo `.env`")
-                        st.info("""
-                        **Para configurar la aplicación:**
+                    
+                    # Detectar si es un error de configuración de APIs
+                    if ("Faltan las siguientes configuraciones de API" in error_msg or 
+                        "prev_API" in error_msg or "roe_API" in error_msg or "lam_API" in error_msg):
                         
-                        1. Abre el archivo `.env` en el directorio del proyecto
-                        2. Reemplaza las URLs de prueba con tus endpoints reales de API:
-                           - `prev_API=https://tu-endpoint-real.com/datos-preventivos`
-                           - `roe_API=https://tu-endpoint-real.com/datos-roedores`
-                           - `lam_API=https://tu-endpoint-real.com/datos-lamparas`
-                        3. Actualiza esta página
-                        """)
+                        # Detectar el entorno
+                        is_streamlit_cloud = (
+                            os.getenv('STREAMLIT_SHARING_MODE') or 
+                            os.getenv('STREAMLIT_CLOUD') or
+                            'streamlit.app' in os.getenv('HOSTNAME', '') or
+                            'share.streamlit.io' in os.getenv('HOSTNAME', '')
+                        )
+                        
+                        if is_streamlit_cloud:
+                            st.error("❌ **Configuración Requerida**: Faltan los secretos de API en Streamlit Cloud")
+                            st.info("""
+                            **Para configurar en Streamlit Cloud:**
+                            
+                            1. Ve a la configuración de tu aplicación en Streamlit Cloud
+                            2. Agrega los siguientes secretos en el "Secrets management":
+                            ```toml
+                            prev_API = "https://tu-endpoint-preventivos.com"
+                            roe_API = "https://tu-endpoint-roedores.com"  
+                            lam_API = "https://tu-endpoint-lamparas.com"
+                            ```
+                            3. Guarda y reinicia la aplicación
+                            """)
+                        else:
+                            st.error("❌ **Configuración Requerida**: Faltan las variables de entorno de API")
+                            st.info("""
+                            **Para configurar en desarrollo local:**
+                            
+                            1. Crea un archivo `.env` en el directorio del proyecto (si no existe)
+                            2. Agrega las siguientes líneas con tus endpoints reales:
+                            ```
+                            prev_API=https://tu-endpoint-preventivos.com
+                            roe_API=https://tu-endpoint-roedores.com  
+                            lam_API=https://tu-endpoint-lamparas.com
+                            ```
+                            3. Reinicia la aplicación
+                            """)
                     else:
                         st.error(f"❌ Error cargando datos iniciales: {error_msg}")
                         
@@ -278,6 +308,8 @@ def main():
                             - Confirma que los endpoints de API sean accesibles
                             - Asegúrate que los endpoints de API retornen datos en el formato esperado
                             - Verifica si se requiere autenticación para las APIs
+                            - Para desarrollo local: revisa tu archivo `.env`
+                            - Para Streamlit Cloud: revisa la configuración de secretos
                             """)
                     st.stop()
     
