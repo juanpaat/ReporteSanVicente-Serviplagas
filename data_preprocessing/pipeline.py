@@ -10,6 +10,7 @@ from .general_utils import (agregar_ceros_a_columnas,
 from .lamp_utils import agregar_columna_lampara, ordenar_columnas_lamparas
 from .prev_utils import ordenar_columnas_prev, agregar_area, renombrar_subareas, agregar_subarea
 from .roed_utils import agregar_columna_num_estacion, ordenar_columnas_roedores, unir_columna_consumido
+from .correc_utils import ordenar_columnas_correc
 
 
 def leer_data(API_URL: str) -> pd.DataFrame:
@@ -115,9 +116,6 @@ def renombrar_id(df: pd.DataFrame) -> pd.DataFrame:
 
 
 
-
-
-
 def procesar_preventivos(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     """
@@ -207,7 +205,6 @@ def procesar_preventivos(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
 
 
-
 def procesar_lamparas(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # Work with a copy to avoid SettingWithCopyWarning
     df = df.copy()
@@ -277,9 +274,6 @@ def procesar_lamparas(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
 
 
-
-
-
 def procesar_roedores(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # Work with a copy to avoid SettingWithCopyWarning
     df = df.copy()
@@ -346,3 +340,60 @@ def procesar_roedores(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     df , df_full = ordenar_columnas_roedores(df)
 
     return df , df_full
+
+
+
+def procesar_correctivos(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    #date
+    df = df.copy()
+    # Agregar columna 'Fecha pandas'
+    df = agregar_nueva_fecha(df, 'Fecha')
+    # Agregar columna 'Mes'
+    df = columna_mes(df, 'Fecha pandas')
+
+    # Formato
+    df['Nombre'] = df['Nombre'].str.title()
+    df['Solicitado por'] = df['Solicitado por'].str.title()
+
+
+    # Plagas
+    # Agregar ceros a columnas que comienza con Evidencia de plagas
+    df = agregar_ceros_a_columnas(df, r'^Evidencia de plagas/')
+    # Agregar ceros a columna que comienza con Cantidad de hallazgos de 
+    df = agregar_ceros_a_columnas(df, r'^Cantidad de hallazgos de ')
+    # Crea una columna por cada otro tipo de plaga evidenciada.
+    df = agregar_cantidades_otras(df = df,
+                                    source_column = 'Cuál otra plaga evidenció?',
+                                    quantity_column = 'Cantidad de hallazgos de ${cual_otra_plaga_evidencio}',
+                                    prefix = 'Cantidad de hallazgos de',
+                                    separator = ' ',
+                                    drop_source= True,
+                                    drop_quantity= True)
+    # crear columna Evidencia de plagas 
+    df = crear_columna_combinada(df= df,
+                                    column_pattern = r'^Cantidad de hallazgos de ',
+                                    new_column_name = 'Evidencia de plagas',
+                                    name_separator = 'hallazgos de ',
+                                    join_separator = ', ',
+                                    empty_value = 'Sin evidencia')
+
+
+
+    # Técnicos
+    # agregar ceros a las columnas de técnicos
+    df = agregar_ceros_a_columnas(df, r'^Asignado a/')
+    # Agregar columna 'Técnicos'
+    df = crear_columna_combinada(df= df,
+                                column_pattern = r'^Asignado a/',
+                                new_column_name = 'Técnicos',
+                                name_separator = '/',
+                                join_separator = ', ',
+                                empty_value = '')
+
+     # ordenar columnas
+    df, full_df = ordenar_columnas_correc(df)
+
+   
+    return  df, full_df
+
+
