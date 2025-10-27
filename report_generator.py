@@ -6,7 +6,7 @@ from datetime import datetime
 import config as cfg
 
 # Importaciones de procesamiento de datos
-from data_preprocessing.pipeline import leer_data, procesar_preventivos, procesar_lamparas, procesar_roedores
+from data_preprocessing.pipeline import leer_data, procesar_preventivos, procesar_lamparas, procesar_roedores, procesar_correctivos
 import ssl
 import urllib3
 
@@ -14,7 +14,7 @@ import urllib3
 from data_visualization.preventivos import generate_order_area_plot, generate_plagas_timeseries_facet, generate_total_plagas_trend_plot
 from data_visualization.roedores import generate_roedores_station_status_plot, plot_tendencia_eliminacion_mensual
 from data_visualization.lamparas import plot_estado_lamparas_por_mes, plot_estado_lamparas_con_leyenda, plot_capturas_especies_por_mes, plot_tendencia_total_capturas
-
+from data_visualization.correctivos import plot_tendencia_total_eliminacion, plot_nivel_de_infestación, plot_plagas_por_especie_mes
 # Motor de reportes
 from Engine.engine import InformeHospitalGenerator
 
@@ -38,14 +38,16 @@ def load_api_data():
         prev_api = None
         roe_api = None
         lam_api = None
+        corr_api = None
         
         # Método 1: Intentar variables de entorno primero (desarrollo local)
         prev_api = os.getenv("prev_API")
         roe_api = os.getenv("roe_API") 
         lam_api = os.getenv("lam_API")
+        corr_api = os.getenv("cor_API")
         
         # Método 2: Si no hay variables de entorno, intentar Streamlit secrets
-        if not (prev_api and roe_api and lam_api):
+        if not (prev_api and roe_api and lam_api and corr_api):
             try:
                 import streamlit as st
                 
@@ -66,6 +68,11 @@ def load_api_data():
                         lam_api = lam_api or st.secrets["lam_API"]
                     except KeyError:
                         pass
+
+                    try:
+                        corr_api = corr_api or st.secrets["cor_API"]
+                    except KeyError:
+                        pass
                     
             except (ImportError, AttributeError) as e:
                 # Streamlit no disponible o secretos no configurados
@@ -81,6 +88,8 @@ def load_api_data():
             missing_apis.append("roe_API")
         if not lam_api:
             missing_apis.append("lam_API")
+        if not corr_api:
+            missing_apis.append("cor_API")
             
         if missing_apis:
             raise ValueError(
@@ -94,6 +103,7 @@ def load_api_data():
             prev_data = leer_data(prev_api)
             roed_data = leer_data(roe_api)
             lamp_data = leer_data(lam_api)
+            corr_data = leer_data(corr_api)
         except ssl.SSLError as e:
             # Manejar problemas de certificados SSL comunes en macOS
             if "CERTIFICATE_VERIFY_FAILED" in str(e):
@@ -107,13 +117,13 @@ def load_api_data():
         except Exception as api_error:
             raise Exception(f"Error conectando a APIs: {str(api_error)}")
         
-        return prev_data, roed_data, lamp_data
+        return prev_data, roed_data, lamp_data, corr_data
         
     except Exception as e:
         raise Exception(f"Error cargando datos de API: {str(e)}")
 
 
-def process_location_data(prev_data, roed_data, lamp_data, location, start_date=None, end_date=None):
+def process_location_data(prev_data, roed_data, lamp_data, corr_data, location, start_date=None, end_date=None):
     """
     Procesar datos para una ubicación específica
     
@@ -133,11 +143,13 @@ def process_location_data(prev_data, roed_data, lamp_data, location, start_date=
         prev_location = prev_data[prev_data['Sede'] == location]
         roed_location = roed_data[roed_data['Sede'] == location]
         lamp_location = lamp_data[lamp_data['Sede'] == location]
+        corr_location = corr_data[corr_data['Sede'] == location]
         
         # Procesar datos
         _, df_prev_full = procesar_preventivos(prev_location)
         _, df_roed_full = procesar_roedores(roed_location)
         _, df_lamp_full = procesar_lamparas(lamp_location)
+        _, df_corr_full = procesar_correctivos(corr_location)
         
         # Filtrar por rango de fechas si se especifica
         if start_date and end_date:
@@ -161,14 +173,19 @@ def process_location_data(prev_data, roed_data, lamp_data, location, start_date=
                     (df_lamp_full['Fecha pandas'] >= start_datetime) & 
                     (df_lamp_full['Fecha pandas'] <= end_datetime)
                 ]
+            if 'Fecha pandas' in df_corr_full.columns:
+                df_corr_full = df_corr_full[
+                    (df_corr_full['Fecha pandas'] >= start_datetime) & 
+                    (df_corr_full['Fecha pandas'] <= end_datetime)
+                ]
         
-        return df_prev_full, df_roed_full, df_lamp_full
+        return df_prev_full, df_roed_full, df_lamp_full, df_corr_full
     
     except Exception as e:
         raise Exception(f"Error procesando datos para {location}: {str(e)}")
 
 
-def add_location_visualizations(informe, df_prev_full, df_roed_full, df_lamp_full):
+def add_location_visualizations(informe, df_prev_full, df_roed_full, df_lamp_full, df_corr_full):
     """
     Agregar todas las visualizaciones al reporte
     
@@ -177,6 +194,7 @@ def add_location_visualizations(informe, df_prev_full, df_roed_full, df_lamp_ful
         df_prev_full: Datos procesados de preventivos
         df_roed_full: Datos procesados de roedores
         df_lamp_full: Datos procesados de lámparas
+        df_corr_full: Datos procesados de correctivos
     """
     try:
         # Visualizaciones de preventivos
@@ -198,7 +216,7 @@ def add_location_visualizations(informe, df_prev_full, df_roed_full, df_lamp_ful
             'preventivos_3_plot',
             'preventivos_3_tabla'
         )
-        
+    
         # Visualizaciones de roedores
         informe.agregar_resultado_completo(
             generate_roedores_station_status_plot, 
@@ -238,7 +256,27 @@ def add_location_visualizations(informe, df_prev_full, df_roed_full, df_lamp_ful
             'lamparas_4_plot',
             'lamparas_4_tabla'
         )
+        # Visualizaciones de correctivos
+        informe.agregar_resultado_completo(
+            plot_tendencia_total_eliminacion,
+            df_corr_full,
+            'correctivo_1_plot',
+            'correctivo_1_tabla'
+        )
+        informe.agregar_resultado_completo(
+            plot_nivel_de_infestación,
+            df_corr_full,
+            'correctivo_2_plot',
+            'correctivo_2_tabla'
+        )
+        informe.agregar_resultado_completo(
+            plot_plagas_por_especie_mes,
+            df_corr_full,
+            'correctivo_3_plot',
+            'correctivo_3_tabla'
+        )
         
+
     except Exception as e:
         raise Exception(f"Error agregando visualizaciones: {str(e)}")
 
@@ -421,7 +459,7 @@ def generate_report_for_locations(locations, start_date=None, end_date=None, tem
             locations = [locations]
         
         # Cargar datos de API
-        prev_data, roed_data, lamp_data = load_api_data()
+        prev_data, roed_data, lamp_data, corr_data = load_api_data()
         
         # Calcular variables para el reporte
         report_data = calculate_report_variables(prev_data, locations[0], start_date, end_date)
@@ -436,13 +474,13 @@ def generate_report_for_locations(locations, start_date=None, end_date=None, tem
         # Procesar cada ubicación
         for location in locations:
             # Procesar datos de ubicación
-            df_prev_full, df_roed_full, df_lamp_full = process_location_data(
-                prev_data, roed_data, lamp_data, location, start_date, end_date
+            df_prev_full, df_roed_full, df_lamp_full, df_corr_full = process_location_data(
+                prev_data, roed_data, lamp_data, corr_data, location, start_date, end_date
             )
             
             # Agregar visualizaciones
             add_location_visualizations(
-                informe, df_prev_full, df_roed_full, df_lamp_full
+                informe, df_prev_full, df_roed_full, df_lamp_full, df_corr_full
             )
         
         # Generar reporte
@@ -461,7 +499,7 @@ def generate_report_for_locations(locations, start_date=None, end_date=None, tem
         raise Exception(f"Error generando reporte: {str(e)}")
 
 
-def get_data_summary(prev_data, roed_data, lamp_data, locations):
+def get_data_summary(prev_data, roed_data, lamp_data, corr_data,  locations):
     """
     Obtener estadísticas de resumen para los datos
     
@@ -469,6 +507,7 @@ def get_data_summary(prev_data, roed_data, lamp_data, locations):
         prev_data: Datos crudos de preventivos
         roed_data: Datos crudos de roedores
         lamp_data: Datos crudos de lámparas
+        corr_data: Datos crudos de correctivos
         locations: Lista de ubicaciones a analizar
         
     Returns:
@@ -484,11 +523,13 @@ def get_data_summary(prev_data, roed_data, lamp_data, locations):
             prev_loc = prev_data[prev_data['Sede'] == location]
             roed_loc = roed_data[roed_data['Sede'] == location]
             lamp_loc = lamp_data[lamp_data['Sede'] == location]
+            corr_loc = corr_data[corr_data['Sede'] == location]
             
             location_summary['preventivos_records'] = len(prev_loc)
             location_summary['roedores_records'] = len(roed_loc)
             location_summary['lamparas_records'] = len(lamp_loc)
-            location_summary['total_records'] = len(prev_loc) + len(roed_loc) + len(lamp_loc)
+            location_summary['correctivos_records'] = len(corr_loc)
+            location_summary['total_records'] = len(prev_loc) + len(roed_loc) + len(lamp_loc) + len(corr_loc)
             
             # Rangos de fechas
             if len(prev_loc) > 0:
