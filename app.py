@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import traceback
 from io import BytesIO
 from report_generator import load_api_data, generate_report_for_locations, get_data_summary
-from data_preprocessing.pipeline import procesar_preventivos, procesar_lamparas, procesar_roedores
+from data_preprocessing.pipeline import procesar_preventivos, procesar_lamparas, procesar_roedores, procesar_correctivos
 
 
 # Configuración de página
@@ -136,7 +136,7 @@ def data_export_tab():
         with st.spinner("Cargando y procesando datos..."):
             try:
                 # Load API data
-                prev_data, roed_data, lamp_data = cached_load_api_data()
+                prev_data, roed_data, lamp_data, corr_data = cached_load_api_data()
                 
                 # Filter data by date range for all datasets
                 def filter_by_date_range(df, start_date, end_date):
@@ -165,6 +165,7 @@ def data_export_tab():
                 prev_filtered = filter_by_date_range(prev_data, export_start_date, export_end_date)
                 roed_filtered = filter_by_date_range(roed_data, export_start_date, export_end_date)
                 lamp_filtered = filter_by_date_range(lamp_data, export_start_date, export_end_date)
+                corr_filtered = filter_by_date_range(corr_data, export_start_date, export_end_date)
                 
                 # Process data using the pipeline functions
                 progress_bar = st.progress(0)
@@ -181,6 +182,10 @@ def data_export_tab():
                 status_text.text("🔄 Procesando datos de lámparas...")
                 progress_bar.progress(60)
                 df_lamp, df_lamp_full = procesar_lamparas(lamp_filtered)
+
+                status_text.text("🔄 Procesando datos de correctivos...")
+                progress_bar.progress(70)
+                df_corr, df_corr_full = procesar_correctivos(corr_filtered)
                 
                 status_text.text("🔄 Filtrando datos por sede...")
                 progress_bar.progress(80)
@@ -209,6 +214,14 @@ def data_export_tab():
                 else:
                     lamp_medellin = df_lamp.copy()
                     lamp_rionegro = pd.DataFrame()
+
+                # correctivos
+                if 'Sede' in df_corr.columns:
+                    corr_medellin = df_corr[df_corr['Sede'] == 'Medellín'].copy()
+                    corr_rionegro = df_corr[df_corr['Sede'] == 'Rionegro'].copy()
+                else:
+                    corr_medellin = df_corr.copy()
+                    corr_rionegro = pd.DataFrame()                    
                 
                 status_text.text("✅ ¡Procesamiento completado!")
                 progress_bar.progress(100)
@@ -226,6 +239,10 @@ def data_export_tab():
                     'lamparas': {
                         'medellin': lamp_medellin,
                         'rionegro': lamp_rionegro
+                    },
+                    'correctivos': {
+                        'medellin': corr_medellin,
+                        'rionegro': corr_rionegro
                     },
                     'date_range': (export_start_date, export_end_date)
                 }
@@ -343,6 +360,36 @@ def data_export_tab():
                     key="lamp_rio"
                 )
         
+        # Correctivos section
+        st.markdown("#### 🛠️ Correctivos")
+        col_corr1, col_corr2 = st.columns(2)
+        
+        with col_corr1:
+            st.metric("🏢 Medellín", len(data['correctivos']['medellin']))
+            if len(data['correctivos']['medellin']) > 0:
+                excel_corr_med = convert_df_to_excel(data['correctivos']['medellin'], "Correctivos_Medellin")
+                st.download_button(
+                    label="⬇️ Descargar Correctivos Medellín",
+                    data=excel_corr_med,
+                    file_name=f"Correctivos_Medellin_{date_range_str}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="corr_med"
+                )
+        
+        with col_corr2:
+            st.metric("🏢 Rionegro", len(data['correctivos']['rionegro']))
+            if len(data['correctivos']['rionegro']) > 0:
+                excel_corr_rio = convert_df_to_excel(data['correctivos']['rionegro'], "Correctivos_Rionegro")
+                st.download_button(
+                    label="⬇️ Descargar Correctivos Rionegro",
+                    data=excel_corr_rio,
+                    file_name=f"Correctivos_Rionegro_{date_range_str}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="corr_rio"
+                )
+        
         # Combined download
         st.markdown("---")
         st.markdown("### 📦 Descarga Combinada")
@@ -367,6 +414,12 @@ def data_export_tab():
                 data['lamparas']['medellin'].to_excel(writer, index=False, sheet_name='Lamparas_Medellin')
             if len(data['lamparas']['rionegro']) > 0:
                 data['lamparas']['rionegro'].to_excel(writer, index=False, sheet_name='Lamparas_Rionegro')
+            
+            # Correctivos sheets
+            if len(data['correctivos']['medellin']) > 0:
+                data['correctivos']['medellin'].to_excel(writer, index=False, sheet_name='Correctivos_Medellin')
+            if len(data['correctivos']['rionegro']) > 0:
+                data['correctivos']['rionegro'].to_excel(writer, index=False, sheet_name='Correctivos_Rionegro')
         combined_output.seek(0)
         
         st.download_button(
@@ -400,6 +453,12 @@ def data_export_tab():
                 st.dataframe(data['lamparas']['medellin'].head(5), use_container_width=True)
             else:
                 st.info("No hay datos de lámparas para Medellín en el rango seleccionado")
+            
+            st.markdown("**🛠️ Correctivos - Medellín**")
+            if len(data['correctivos']['medellin']) > 0:
+                st.dataframe(data['correctivos']['medellin'].head(5), use_container_width=True)
+            else:
+                st.info("No hay datos de correctivos para Medellín en el rango seleccionado")
         
         with tab_rio:
             st.markdown("**🛡️ Preventivos - Rionegro**")
@@ -419,6 +478,12 @@ def data_export_tab():
                 st.dataframe(data['lamparas']['rionegro'].head(5), use_container_width=True)
             else:
                 st.info("No hay datos de lámparas para Rionegro en el rango seleccionado")
+            
+            st.markdown("**🛠️ Correctivos - Rionegro**")
+            if len(data['correctivos']['rionegro']) > 0:
+                st.dataframe(data['correctivos']['rionegro'].head(5), use_container_width=True)
+            else:
+                st.info("No hay datos de correctivos para Rionegro en el rango seleccionado")
 def report_generation_tab():
     """Original Report Generation Tab functionality"""
     # Configuración de barra lateral - PASO 1: Configuración de Parámetros
@@ -461,7 +526,7 @@ def report_generation_tab():
         
         if st.session_state.data_loaded:
             try:
-                prev_data, _, _ = st.session_state.api_data
+                prev_data, _, _ , _= st.session_state.api_data
                 # Filtrar por sede seleccionada
                 sede_data = prev_data[prev_data['Sede'] == selected_location]
                 
@@ -540,13 +605,13 @@ def report_generation_tab():
     if not st.session_state.data_loaded:
         with st.spinner("Cargando datos iniciales..."):
             try:
-                prev_data, roed_data, lamp_data = cached_load_api_data()
+                prev_data, roed_data, lamp_data, corr_data = cached_load_api_data()
                 st.session_state.data_loaded = True
-                st.session_state.api_data = (prev_data, roed_data, lamp_data)
+                st.session_state.api_data = (prev_data, roed_data, lamp_data, corr_data)
                 st.rerun()
             except Exception as e:
                 error_msg = str(e)
-                
+
                 # Detectar si es un error de configuración de APIs
                 if ("Faltan las siguientes configuraciones de API" in error_msg or 
                     "prev_API" in error_msg or "roe_API" in error_msg or "lam_API" in error_msg):
@@ -570,6 +635,7 @@ def report_generation_tab():
                         prev_API = "https://tu-endpoint-preventivos.com"
                         roe_API = "https://tu-endpoint-roedores.com"  
                         lam_API = "https://tu-endpoint-lamparas.com"
+                        cor_API = "https://tu-endpoint-correctivos.com"
                         ```
                         3. Guarda y reinicia la aplicación
                         """)
@@ -584,6 +650,7 @@ def report_generation_tab():
                         prev_API=https://tu-endpoint-preventivos.com
                         roe_API=https://tu-endpoint-roedores.com  
                         lam_API=https://tu-endpoint-lamparas.com
+                        cor_API=https://tu-endpoint-correctivos.com
                         ```
                         3. Reinicia la aplicación
                         """)
@@ -621,7 +688,7 @@ def report_generation_tab():
         st.subheader("📊 Resumen de Datos")
         
         try:
-            prev_data, roed_data, lamp_data = st.session_state.api_data
+            prev_data, roed_data, lamp_data, corr_data = st.session_state.api_data
             selected_location = st.session_state.selected_location
             start_date, end_date = st.session_state.date_range
             
@@ -629,11 +696,11 @@ def report_generation_tab():
             locations_to_process = [selected_location]
             
             # Mostrar resumen de datos
-            summary = get_data_summary(prev_data, roed_data, lamp_data, locations_to_process)
+            summary = get_data_summary(prev_data, roed_data, lamp_data, corr_data ,locations_to_process)
             
             for location, stats in summary.items():
                 st.markdown(f"**📍 {location}**")
-                col_a, col_b, col_c, col_d = st.columns(4)
+                col_a, col_b, col_c, col_d, col_e  = st.columns(5)
                 with col_a:
                     st.metric("🛡️ Preventivos", stats['preventivos_records'])
                 with col_b:
@@ -641,6 +708,8 @@ def report_generation_tab():
                 with col_c:
                     st.metric("💡 Lámparas", stats['lamparas_records'])
                 with col_d:
+                    st.metric("🛠️ Correctivos", stats['correctivos_records'])
+                with col_e:
                     st.metric("📊 Total", stats['total_records'])
                 
                 if 'date_range' in stats:
@@ -736,16 +805,6 @@ def report_generation_tab():
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             use_container_width=True
         )
-        
-        # Información del reporte
-        st.info(f"**📄 Archivo:** {st.session_state.report_filename}")
-        
-        # Mostrar configuración usada
-        if st.session_state.config_set:
-            with st.expander("� Configuración Usada"):
-                st.write(f"🏢 **Sede:** {st.session_state.selected_location}")
-                st.write(f"📅 **Fechas:** {st.session_state.date_range[0]} a {st.session_state.date_range[1]}")
-                st.write(f"📄 **Plantilla:** Plantilla por defecto")
         
         # Botón de reinicio para nuevo reporte
         if st.button("🔄 Generar Nuevo Reporte", use_container_width=True):
