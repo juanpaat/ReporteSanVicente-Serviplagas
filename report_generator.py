@@ -14,7 +14,7 @@ import urllib3
 from data_visualization.preventivos import generate_order_area_plot, generate_plagas_timeseries_facet, generate_total_plagas_trend_plot
 from data_visualization.roedores import generate_roedores_station_status_plot, plot_tendencia_eliminacion_mensual
 from data_visualization.lamparas import plot_estado_lamparas_por_mes, plot_estado_lamparas_con_leyenda, plot_capturas_especies_por_mes, plot_tendencia_total_capturas
-from data_visualization.correctivos import plot_tendencia_total_eliminacion, plot_nivel_de_infestación, plot_plagas_por_especie_mes
+from data_visualization.correctivos import generate_order_comparison_plot, plot_tendencia_total_eliminacion, plot_nivel_de_infestación, plot_plagas_por_especie_mes
 # Motor de reportes
 from Engine.engine import InformeHospitalGenerator
 
@@ -258,22 +258,28 @@ def add_location_visualizations(informe, df_prev_full, df_roed_full, df_lamp_ful
         )
         # Visualizaciones de correctivos
         informe.agregar_resultado_completo(
-            plot_tendencia_total_eliminacion,
+            generate_order_comparison_plot,
             df_corr_full,
             'correctivo_1_plot',
             'correctivo_1_tabla'
         )
         informe.agregar_resultado_completo(
-            plot_nivel_de_infestación,
+            plot_tendencia_total_eliminacion,
             df_corr_full,
             'correctivo_2_plot',
             'correctivo_2_tabla'
         )
         informe.agregar_resultado_completo(
-            plot_plagas_por_especie_mes,
+            plot_nivel_de_infestación,
             df_corr_full,
             'correctivo_3_plot',
             'correctivo_3_tabla'
+        )
+        informe.agregar_resultado_completo(
+            plot_plagas_por_especie_mes,
+            df_corr_full,
+            'correctivo_4_plot',
+            'correctivo_4_tabla'
         )
         
 
