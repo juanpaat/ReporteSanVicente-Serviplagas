@@ -16,30 +16,40 @@ def ordenar_columnas_correc(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFram
 
     # Orden predefinido de columnas principales
     main_columns = ([
-        #'Código',
+        'ID',
         'Fecha',
         'Mes',
         'Sede',
         'Ubicación',
-        'Nombre',
-        'Solicitado por',
-        'Técnicos',
-        'Evidencia de plagas',
-        'Descripción del trabajo realizado'])
-
-    # Orden predefinido de columnas principales
-    all_columns = ([
-        'Fecha',
-        'Fecha pandas',
-        'Mes',
-        'Orden de Mantenimiento',
-        'Sede',
-        'Ubicación',
+        'Descripción del aviso'
         'Nombre',
         'Solicitado por',
         'Técnicos',
         'Evidencia de plagas']
-        + columnas_cantidad_de_plagas
-        + ['Descripción del trabajo realizado'])
+        + columnas_cantidad_de_plagas +
+        ['Fecha de entrega',
+        'Hora de entrega',
+        'Duración',
+        'Descripción del trabajo realizado',
+        'Recomendaciones'])
+    
+    # Orden predefinido de columnas principales
+    all_columns = ([
+        'ID',
+        'Fecha',
+        'Mes',
+        'Sede',
+        'Ubicación',
+        'Descripción del aviso'
+        'Nombre',
+        'Solicitado por',
+        'Técnicos',
+        'Evidencia de plagas']
+        + columnas_cantidad_de_plagas +
+        ['Fecha de entrega',
+        'Hora de entrega',
+        'Duración',
+        'Descripción del trabajo realizado',
+        'Recomendaciones'])
     
     return df[main_columns], df[all_columns]

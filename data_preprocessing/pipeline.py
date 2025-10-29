@@ -390,6 +390,9 @@ def procesar_correctivos(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
                                 join_separator = ', ',
                                 empty_value = '')
 
+    # Renombrar columna '_index' a 'ID'
+    df = renombrar_id(df)
+
      # ordenar columnas
     df, full_df = ordenar_columnas_correc(df)
 
