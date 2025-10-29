@@ -21,7 +21,7 @@ def ordenar_columnas_correc(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFram
         'Mes',
         'Sede',
         'Ubicación',
-        'Descripción del aviso'
+        'Descripción del aviso',
         'Nombre',
         'Solicitado por',
         'Técnicos',
@@ -40,7 +40,7 @@ def ordenar_columnas_correc(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFram
         'Mes',
         'Sede',
         'Ubicación',
-        'Descripción del aviso'
+        'Descripción del aviso',
         'Nombre',
         'Solicitado por',
         'Técnicos',
