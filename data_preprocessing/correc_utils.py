@@ -17,6 +17,7 @@ def ordenar_columnas_correc(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFram
     # Orden predefinido de columnas principales
     main_columns = ([
         'ID',
+        'Orden de Mantenimiento'
         'Fecha',
         'Mes',
         'Sede',
@@ -36,6 +37,7 @@ def ordenar_columnas_correc(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFram
     # Orden predefinido de columnas principales
     all_columns = ([
         'ID',
+        'Orden de Mantenimiento'
         'Fecha',
         'Mes',
         'Sede',
