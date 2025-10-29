@@ -10,6 +10,99 @@ from config import meses_esp
 
 
 ## plots
+def generate_order_comparison_plot(df: pd.DataFrame) -> tuple[pd.DataFrame, plt.Figure]:
+    """
+    Generate a grouped bar plot showing:
+        - Cantidad de órdenes
+        - Órdenes con plaga
+    grouped by month (Mes).
+
+    Parameters:
+    ----------
+    df : pd.DataFrame
+        The transformed 'correctivos' DataFrame containing columns:
+        'Mes', 'ID', 'Evidencia de plagas'
+
+    Returns:
+    -------
+    tuple[pd.DataFrame, plt.Figure]
+        Summary DataFrame and the matplotlib figure object
+    """
+    # Group and summarize
+    summary_df = df.groupby('Mes').agg({
+        'ID': pd.Series.nunique,
+        'Evidencia de plagas': lambda x: (x != 'Sin evidencia').sum()
+    }).reset_index()
+
+    summary_df.columns = ['Mes', 'Cantidad de órdenes', 'Órdenes con plaga']
+
+    # Convert to long format
+    summary_long = summary_df.melt(
+        id_vars='Mes',
+        var_name='Variable',
+        value_name='Valor'
+    )
+
+    # Sort 'Mes' if in 'Mon YYYY' format
+    try:
+        # Create reverse mapping (Spanish -> English)  
+        meses_eng = {v: k for k, v in meses_esp.items()}
+        
+        # Convert Spanish months to English for sorting
+        def spanish_month_to_datetime(mes_str):
+            for spanish, english in meses_eng.items():
+                if spanish in mes_str:
+                    english_mes = mes_str.replace(spanish, english)
+                    return pd.to_datetime(english_mes, format='%b %Y')
+            return pd.to_datetime(mes_str, format='%b %Y')
+        
+        summary_long['Mes'] = pd.Categorical(
+            summary_long['Mes'],
+            categories=sorted(summary_df['Mes'], key=spanish_month_to_datetime),
+            ordered=True
+        )
+    except Exception as e:
+        print(f"[Warning] Could not parse and sort 'Mes': {e}")
+
+    # Crear figura y eje
+    fig, ax = plt.subplots(figsize=(12, 6))
+    sns.set_style("whitegrid")
+
+    # Graficar
+    bar_plot = sns.barplot(
+        data=summary_long,
+        x='Mes',
+        y='Valor',
+        hue='Variable',
+        palette=['#333333', '#D3D3D3'],
+        edgecolor='black',
+        ax=ax
+    )
+
+    for p in bar_plot.patches:
+        height = p.get_height()
+        if height > 0:
+            ax.annotate(
+                f'{int(height)}',
+                (p.get_x() + p.get_width() / 2., height),
+                ha='center', va='bottom',
+                fontsize=9, color='black'
+            )
+
+    ax.set_title("Cantidad de órdenes vs Órdenes con plaga", fontsize=14, weight='bold')
+    ax.set_xlabel("")
+    ax.set_ylabel("Cantidad")
+    ax.legend(
+        title="",
+        loc='center left',
+        bbox_to_anchor=(1.0, 0.5),
+        frameon=False
+    )
+
+    fig.tight_layout()
+    return summary_df, fig
+
+
 def plot_tendencia_total_eliminacion(df: pd.DataFrame) -> tuple[pd.DataFrame, plt.Figure]:
     """
     Generate a bar + line + point chart showing the monthly trend of total species captures.
