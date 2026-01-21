@@ -369,6 +369,7 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
         mes_analisis = "No disponible"
         ano_analisis = datetime.now().year
         porcentaje_realizados = 0.0
+        fecha_elaboracion = datetime.now().strftime('%d/%m/%Y')  # Default value
         
         if len(sede_data) > 0:
             try:
@@ -384,6 +385,12 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
                         if 'Fecha pandas' in df_processed.columns:
                             max_date_row = df_processed.loc[df_processed['Fecha pandas'].idxmax()]
                             max_date = df_processed['Fecha pandas'].max()
+                            
+                            # Calcular el último día del mes de la fecha máxima
+                            import calendar
+                            last_day = calendar.monthrange(max_date.year, max_date.month)[1]
+                            last_date_of_month = max_date.replace(day=last_day)
+                            fecha_elaboracion = last_date_of_month.strftime('%d/%m/%Y')
                             
                             if 'Mes' in max_date_row:
                                 mes_analisis = max_date_row['Mes']
@@ -447,7 +454,7 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
         
         # Variables del reporte
         report_variables = {
-            'fecha_de_elaboracion': datetime.now().strftime('%d/%m/%Y'),
+            'fecha_de_elaboracion': fecha_elaboracion,
             'dirección': cfg.direcciones.get(sede, '{{direccion_no_encontrada}}'),
             'sede': sede,
             'numero_de_solicitados': str(numero_solicitados),
