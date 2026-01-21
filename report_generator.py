@@ -383,14 +383,26 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
                     # mes_de_analisis: obtener el mes del 'Fecha pandas' máximo
                     try:
                         if 'Fecha pandas' in df_processed.columns:
-                            max_date_row = df_processed.loc[df_processed['Fecha pandas'].idxmax()]
-                            max_date = df_processed['Fecha pandas'].max()
+                            # Remove NaT values before getting max
+                            valid_dates = df_processed['Fecha pandas'].dropna()
+                            
+                            if len(valid_dates) == 0:
+                                raise ValueError("No hay fechas válidas en los datos procesados")
+                            
+                            max_date = valid_dates.max()
+                            
+                            # Verify max_date is not NaT
+                            if pd.isna(max_date):
+                                raise ValueError("La fecha máxima es NaT (Not a Time)")
                             
                             # Calcular el último día del mes de la fecha máxima
                             import calendar
                             last_day = calendar.monthrange(max_date.year, max_date.month)[1]
                             last_date_of_month = max_date.replace(day=last_day)
                             fecha_elaboracion = last_date_of_month.strftime('%d/%m/%Y')
+                            
+                            # Get the row with max date
+                            max_date_row = df_processed.loc[df_processed['Fecha pandas'] == max_date].iloc[0]
                             
                             if 'Mes' in max_date_row:
                                 mes_analisis = max_date_row['Mes']
@@ -417,6 +429,8 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
                             numero_realizados = 0
                     except Exception as date_error:
                         print(f"[Warning] Error calculando mes_de_analisis y numero_realizados: {date_error}")
+                        import traceback
+                        print(traceback.format_exc())
                         mes_analisis = "No disponible"
                         numero_realizados = 0
                     
@@ -439,13 +453,20 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
                     # porcentaje_de_realizados: número de meses únicos en el dataset / 12
                     try:
                         if 'Mes' in df_processed.columns:
-                            # Contar meses únicos
-                            numero_meses = df_processed['Mes'].nunique()
-                            porcentaje_realizados = round(numero_meses / 12 * 100, 2)
+                            # Remove null/NaN values before counting unique months
+                            valid_months = df_processed['Mes'].dropna()
+                            if len(valid_months) > 0:
+                                numero_meses = valid_months.nunique()
+                                porcentaje_realizados = round(numero_meses / 12 * 100, 2)
+                            else:
+                                print("[Warning] No hay meses válidos en los datos")
+                                porcentaje_realizados = 0.0
                         else:
                             porcentaje_realizados = 0.0
                     except Exception as perc_error:
                         print(f"[Warning] Error calculando porcentaje_de_realizados: {perc_error}")
+                        import traceback
+                        print(traceback.format_exc())
                         porcentaje_realizados = 0.0
                     
             except Exception as e:
