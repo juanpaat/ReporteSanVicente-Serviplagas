@@ -368,6 +368,7 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
         numero_realizados = 0
         mes_analisis = "No disponible"
         ano_analisis = datetime.now().year
+        porcentaje_realizados = 0.0
         
         if len(sede_data) > 0:
             try:
@@ -378,39 +379,67 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
                 _, df_processed = procesar_preventivos(sede_data)
                 
                 if df_processed is not None and len(df_processed) > 0:
-                    # numero_de_realizados: longitud del DataFrame procesado después del filtrado
-                    numero_realizados = len(df_processed)
+                    # mes_de_analisis: obtener el mes del 'Fecha pandas' máximo
+                    try:
+                        if 'Fecha pandas' in df_processed.columns:
+                            max_date_row = df_processed.loc[df_processed['Fecha pandas'].idxmax()]
+                            max_date = df_processed['Fecha pandas'].max()
+                            
+                            if 'Mes' in max_date_row:
+                                mes_analisis = max_date_row['Mes']
+                                try:
+                                    ano_analisis = max_date.year
+                                except:
+                                    ano_analisis = datetime.now().year
+                            else:
+                                mes_analisis = "No disponible"
+                            
+                            # numero_de_realizados: contar subáreas únicas del último mes
+                            # Filtrar df_processed para obtener solo los registros del último mes
+                            last_month_data = df_processed[
+                                (df_processed['Fecha pandas'].dt.year == max_date.year) & 
+                                (df_processed['Fecha pandas'].dt.month == max_date.month)
+                            ]
+                            # Contar subáreas únicas (igual que en preventivos_1_plot)
+                            if 'Subárea' in last_month_data.columns:
+                                numero_realizados = last_month_data['Subárea'].nunique()
+                            else:
+                                numero_realizados = len(last_month_data)
+                        else:
+                            mes_analisis = "No disponible"
+                            numero_realizados = 0
+                    except Exception as date_error:
+                        print(f"[Warning] Error calculando mes_de_analisis y numero_realizados: {date_error}")
+                        mes_analisis = "No disponible"
+                        numero_realizados = 0
                     
-                    # numero_de_solicitados: usar generate_order_area_plot para obtener 'Cantidad de órdenes'
+                    # numero_de_solicitados: usar generate_order_area_plot para obtener 'Cantidad de órdenes' del último mes
                     try:
                         summary_df, _ = generate_order_area_plot(df_processed)
-                        if len(summary_df) > 0 and 'Cantidad de órdenes' in summary_df.columns:
-                            numero_solicitados = summary_df['Cantidad de órdenes'].sum()
+                        if len(summary_df) > 0 and 'Cantidad de órdenes' in summary_df.columns and mes_analisis != "No disponible":
+                            # Filtrar solo el último mes
+                            last_month_summary = summary_df[summary_df['Mes'] == mes_analisis]
+                            if len(last_month_summary) > 0:
+                                numero_solicitados = int(last_month_summary['Cantidad de órdenes'].iloc[0])
+                            else:
+                                numero_solicitados = 0
                         else:
                             numero_solicitados = 0
                     except Exception as plot_error:
                         print(f"[Warning] Error calculando numero_de_solicitados: {plot_error}")
                         numero_solicitados = 0
                     
-                    # mes_de_analisis: obtener el mes del 'Fecha pandas' máximo
+                    # porcentaje_de_realizados: número de meses únicos en el dataset / 12
                     try:
-                        if 'Fecha pandas' in df_processed.columns:
-                            max_date_row = df_processed.loc[df_processed['Fecha pandas'].idxmax()]
-                            if 'Mes' in max_date_row:
-                                mes_analisis = max_date_row['Mes']
-                                # Extraer año del mes de análisis o de la fecha pandas
-                                try:
-                                    max_date = df_processed['Fecha pandas'].max()
-                                    ano_analisis = max_date.year
-                                except:
-                                    ano_analisis = datetime.now().year
-                            else:
-                                mes_analisis = "No disponible"
+                        if 'Mes' in df_processed.columns:
+                            # Contar meses únicos
+                            numero_meses = df_processed['Mes'].nunique()
+                            porcentaje_realizados = round(numero_meses / 12 * 100, 2)
                         else:
-                            mes_analisis = "No disponible"
-                    except Exception as date_error:
-                        print(f"[Warning] Error calculando mes_de_analisis: {date_error}")
-                        mes_analisis = "No disponible"
+                            porcentaje_realizados = 0.0
+                    except Exception as perc_error:
+                        print(f"[Warning] Error calculando porcentaje_de_realizados: {perc_error}")
+                        porcentaje_realizados = 0.0
                     
             except Exception as e:
                 print(f"[Warning] Error en procesamiento para variables adicionales: {e}")
@@ -425,7 +454,8 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
             'numero_de_realizados': str(numero_realizados),
             'mes_de_analisis': mes_analisis,
             'ano_de_analisis': str(ano_analisis),
-            'areas_controladas': areas_controladas
+            'areas_controladas': areas_controladas,
+            'porcentaje_de_realizados': str(porcentaje_realizados)
         }
         
         return report_variables
@@ -441,7 +471,8 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
             'numero_de_realizados': '0',
             'mes_de_analisis': 'No disponible',
             'ano_de_analisis': str(datetime.now().year),
-            'areas_controladas': 'Error al obtener áreas controladas'
+            'areas_controladas': 'Error al obtener áreas controladas',
+            'porcentaje_de_realizados': '0.0'
         }
 
 
