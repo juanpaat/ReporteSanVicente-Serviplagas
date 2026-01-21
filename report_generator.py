@@ -4,6 +4,14 @@ from dotenv import load_dotenv
 from io import BytesIO
 from datetime import datetime
 import config as cfg
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Importaciones de procesamiento de datos
 from data_preprocessing.pipeline import leer_data, procesar_preventivos, procesar_lamparas, procesar_roedores, procesar_correctivos
@@ -77,7 +85,7 @@ def load_api_data():
             except (ImportError, AttributeError) as e:
                 # Streamlit no disponible o secretos no configurados
                 # Esto es normal en desarrollo local sin streamlit
-                print(f"[Info] No se pudieron cargar secretos de Streamlit: {e}")
+                logger.info(f"No se pudieron cargar secretos de Streamlit: {e}")
                 pass
         
         # Validar que tengamos todas las APIs requeridas
@@ -326,7 +334,7 @@ def calculate_areas_from_raw_data(data):
         return ', '.join(unique_areas) if unique_areas else 'Áreas no especificadas'
         
     except Exception as e:
-        print(f"[Warning] Error en calculate_areas_from_raw_data: {e}")
+        logger.warning(f"Error en calculate_areas_from_raw_data: {e}")
         return 'Error al procesar áreas'
 
 
@@ -377,19 +385,25 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
                 from data_visualization.preventivos import generate_order_area_plot
                 
                 # Procesar datos
+                logger.info(f"Procesando {len(sede_data)} registros para {sede}")
                 _, df_processed = procesar_preventivos(sede_data)
                 
                 if df_processed is not None and len(df_processed) > 0:
+                    logger.info(f"Datos procesados: {len(df_processed)} registros")
+                    logger.info(f"Columnas disponibles: {df_processed.columns.tolist()}")
+                    
                     # mes_de_analisis: obtener el mes del 'Fecha pandas' máximo
                     try:
                         if 'Fecha pandas' in df_processed.columns:
                             # Remove NaT values before getting max
                             valid_dates = df_processed['Fecha pandas'].dropna()
+                            logger.info(f"Fechas válidas encontradas: {len(valid_dates)}")
                             
                             if len(valid_dates) == 0:
                                 raise ValueError("No hay fechas válidas en los datos procesados")
                             
                             max_date = valid_dates.max()
+                            logger.info(f"Fecha máxima encontrada: {max_date}")
                             
                             # Verify max_date is not NaT
                             if pd.isna(max_date):
@@ -400,6 +414,7 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
                             last_day = calendar.monthrange(max_date.year, max_date.month)[1]
                             last_date_of_month = max_date.replace(day=last_day)
                             fecha_elaboracion = last_date_of_month.strftime('%d/%m/%Y')
+                            logger.info(f"fecha_de_elaboracion calculada: {fecha_elaboracion}")
                             
                             # Get the row with max date
                             max_date_row = df_processed.loc[df_processed['Fecha pandas'] == max_date].iloc[0]
@@ -410,8 +425,10 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
                                     ano_analisis = max_date.year
                                 except:
                                     ano_analisis = datetime.now().year
+                                logger.info(f"mes_de_analisis: {mes_analisis}, año: {ano_analisis}")
                             else:
                                 mes_analisis = "No disponible"
+                                logger.info("Columna 'Mes' no encontrada en los datos")
                             
                             # numero_de_realizados: contar subáreas únicas del último mes
                             # Filtrar df_processed para obtener solo los registros del último mes
@@ -419,24 +436,29 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
                                 (df_processed['Fecha pandas'].dt.year == max_date.year) & 
                                 (df_processed['Fecha pandas'].dt.month == max_date.month)
                             ]
+                            logger.info(f"Registros del último mes: {len(last_month_data)}")
                             # Contar subáreas únicas (igual que en preventivos_1_plot)
                             if 'Subárea' in last_month_data.columns:
                                 numero_realizados = last_month_data['Subárea'].nunique()
                             else:
                                 numero_realizados = len(last_month_data)
+                            logger.info(f"numero_de_realizados: {numero_realizados}")
                         else:
                             mes_analisis = "No disponible"
                             numero_realizados = 0
+                            logger.info("Columna 'Fecha pandas' no encontrada")
                     except Exception as date_error:
-                        print(f"[Warning] Error calculando mes_de_analisis y numero_realizados: {date_error}")
+                        logger.error(f"Error calculando mes_de_analisis y numero_realizados: {date_error}")
                         import traceback
                         print(traceback.format_exc())
                         mes_analisis = "No disponible"
                         numero_realizados = 0
+                        # Mantener fecha_elaboracion con valor por defecto
                     
                     # numero_de_solicitados: usar generate_order_area_plot para obtener 'Cantidad de órdenes' del último mes
                     try:
                         summary_df, _ = generate_order_area_plot(df_processed)
+                        logger.info(f"Summary DF generado con {len(summary_df)} filas")
                         if len(summary_df) > 0 and 'Cantidad de órdenes' in summary_df.columns and mes_analisis != "No disponible":
                             # Filtrar solo el último mes
                             last_month_summary = summary_df[summary_df['Mes'] == mes_analisis]
@@ -446,8 +468,11 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
                                 numero_solicitados = 0
                         else:
                             numero_solicitados = 0
+                        logger.info(f"numero_de_solicitados: {numero_solicitados}")
                     except Exception as plot_error:
-                        print(f"[Warning] Error calculando numero_de_solicitados: {plot_error}")
+                        logger.error(f"Error calculando numero_de_solicitados: {plot_error}")
+                        import traceback
+                        print(traceback.format_exc())
                         numero_solicitados = 0
                     
                     # porcentaje_de_realizados: número de meses únicos en el dataset / 12
@@ -455,22 +480,29 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
                         if 'Mes' in df_processed.columns:
                             # Remove null/NaN values before counting unique months
                             valid_months = df_processed['Mes'].dropna()
+                            logger.info(f"Meses válidos encontrados: {len(valid_months)}")
                             if len(valid_months) > 0:
                                 numero_meses = valid_months.nunique()
                                 porcentaje_realizados = round(numero_meses / 12 * 100, 2)
+                                logger.info(f"Meses únicos: {numero_meses}, porcentaje: {porcentaje_realizados}%")
                             else:
-                                print("[Warning] No hay meses válidos en los datos")
+                                logger.warning("No hay meses válidos en los datos")
                                 porcentaje_realizados = 0.0
                         else:
+                            logger.info("Columna 'Mes' no encontrada para calcular porcentaje")
                             porcentaje_realizados = 0.0
                     except Exception as perc_error:
-                        print(f"[Warning] Error calculando porcentaje_de_realizados: {perc_error}")
+                        logger.error(f"Error calculando porcentaje_de_realizados: {perc_error}")
                         import traceback
                         print(traceback.format_exc())
                         porcentaje_realizados = 0.0
+                else:
+                    logger.warning("df_processed está vacío o es None")
                     
             except Exception as e:
-                print(f"[Warning] Error en procesamiento para variables adicionales: {e}")
+                logger.error(f"Error en procesamiento para variables adicionales: {e}")
+                import traceback
+                print(traceback.format_exc())
                 # Usar valores por defecto
         
         # Variables del reporte
@@ -486,12 +518,20 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
             'porcentaje_de_realizados': str(porcentaje_realizados)
         }
         
+        # Log final values for debugging
+        logger.info("===== VARIABLES FINALES DEL REPORTE =====")
+        for key, value in report_variables.items():
+            logger.info(f"{key}: {value}")
+        logger.info("==========================================")
+        
         return report_variables
         
     except Exception as e:
-        print(f"[Warning] Error calculando variables del reporte: {e}")
+        logger.error(f"Error calculando variables del reporte: {e}")
+        import traceback
+        print(traceback.format_exc())
         # Valores por defecto en caso de error
-        return {
+        default_vars = {
             'fecha_de_elaboracion': datetime.now().strftime('%d/%m/%Y'),
             'dirección': cfg.direcciones.get(sede, '{{direccion_no_encontrada}}'),
             'sede': sede,
@@ -502,6 +542,11 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
             'areas_controladas': 'Error al obtener áreas controladas',
             'porcentaje_de_realizados': '0.0'
         }
+        logger.info("===== USANDO VALORES POR DEFECTO (ERROR) =====")
+        for key, value in default_vars.items():
+            logger.info(f"{key}: {value}")
+        logger.info("=================================================")
+        return default_vars
 
 
 def generate_report_for_locations(locations, start_date=None, end_date=None, template_path='Plantilla.docx', return_buffer=True):
