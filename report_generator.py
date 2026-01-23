@@ -513,6 +513,22 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
         else:
             numero_de_bloques = 'las áreas'  # Valor por defecto
         
+        # Determinar análisis de roedores según la sede
+        if sede == 'Medellín':
+            analisis_roedores = """ -	Primera visita 13 de diciembre: bioindicador, deterioro, estación desaparecida y consumo. Estación # (3 y 35)
+ -	Segunda visita 27 de diciembre: bioindicador, deterioro, estación desaparecida y consumo. Estación # (37 y 44)
+En el mes de diciembre se presenta consumo en cuatro estaciones en las dos visitas (3, 35, 27 y 44), se mantiene; en recorridos preventivos y zona común, no se presentan episodios con roedores en correctivos salvo reporte de avistamientos los cuales se ceban, dos roedores atrapados, uno vivo y otro muerto en trampa de medicina física y rehabilitación y dos madrigueras activas. Las estaciones 3, 4 y 5 están bloqueadas por remodelación de área.
+Los días de las visitas se dieron el 13 y el 27 de diciembre.  No se repite el consumo; Se halla bioindicador en 13 estaciones, todas por hormigas consumiendo el cebo; 2, 7, 8, 9, 9, 10, 11, 11, 13, 37, 38, 43 y 43; hormigas de fuego especialmente, rojas y cachonas, consumiendo el cebo en las cajas. La estación # 36 estaba desaparecida, se reemplaza al final del mes. Se presenta deterioro en 2 estaciones por condiciones climatológicas: 30 y 34, estas dos también presentaban deterioro en el mes pasado. 
+Se realizaron en total 2 visitas a las estaciones portacebos y porta adhesivos del Hospital Universitario para el mes de diciembre.
+"""
+        elif sede == 'Rionegro':
+            analisis_roedores = """Se hacen en total DOS visitas, el 05 y 20 de diciembre; Durante el mes no se presenta consumo en las estaciones. Se evidencia deterioro en 4 cajas, se reduce con relación al mes pasado; en las estaciones 25, 29, 31 y 33 en la primera visita, esto debido a las condiciones atmosféricas del mes. Ni en preventivos, ni en correctivos ocurren hallazgos relacionados con roedores salvo el consumo presentado el cual es esporádico, casi nunca se presenta. 
+
+Se hace limpieza a las 46 estaciones. Todas las estaciones se encuentran en buen estado.
+"""
+        else:
+            analisis_roedores = 'Aqui va el analisis de los roedores'  # Valor por defecto
+        
         # Variables del reporte
         report_variables = {
             'fecha_de_elaboracion': fecha_elaboracion,
@@ -524,7 +540,8 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
             'ano_de_analisis': str(ano_analisis),
             'areas_controladas': areas_controladas,
             'porcentaje_de_realizados': str(porcentaje_realizados),
-            'numero_de_bloques': numero_de_bloques
+            'numero_de_bloques': numero_de_bloques,
+            'analisis_roedores': analisis_roedores
         }
         
         # Log final values for debugging
@@ -548,6 +565,14 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
         else:
             numero_de_bloques = 'las áreas'
         
+        # Determinar análisis de roedores según la sede (para valores por defecto)
+        if sede == 'Medellín':
+            analisis_roedores = 'Aqui va el analisis de los roedores Medellín'
+        elif sede == 'Rionegro':
+            analisis_roedores = 'Aqui va el analisis de los roedores Rionegro'
+        else:
+            analisis_roedores = 'Aqui va el analisis de los roedores'
+        
         # Valores por defecto en caso de error
         default_vars = {
             'fecha_de_elaboracion': datetime.now().strftime('%d/%m/%Y'),
@@ -559,7 +584,8 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
             'ano_de_analisis': str(datetime.now().year),
             'areas_controladas': 'Error al obtener áreas controladas',
             'porcentaje_de_realizados': '0.0',
-            'numero_de_bloques': numero_de_bloques
+            'numero_de_bloques': numero_de_bloques,
+            'analisis_roedores': analisis_roedores
         }
         logger.info("===== USANDO VALORES POR DEFECTO (ERROR) =====")
         for key, value in default_vars.items():
