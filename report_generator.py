@@ -546,6 +546,32 @@ OTRAS PLAGAS: No se reportan otras plagas en los controles preventivos del mes."
         else:
             analisis_preventivos = 'Aqui va el analisis de los preventivos'  # Valor por defecto
         
+        # Determinar análisis de lámparas según la sede
+        if sede == 'Medellín':
+            analisis_lamparas = 'Aqui va el analisis de las lamparas Medellín'
+        elif sede == 'Rionegro':
+            analisis_lamparas = """Distribución de estados observados
+
+•	Buena potencia: 07 estaciones
+
+•	Lámina saturada: 0 estaciones
+
+•	Bombillo averiado: 1 estaciones (fueron reemplazados bombillos fundidos
+
+•	Faltante: 0 estación.
+
+•	Obstruida, desconectada, deteriorada o apagada: sin registros
+
+Interpretación técnica
+
+El análisis evidencia que el total de las estaciones (7 unidades) se encuentran en óptimas condiciones de funcionamiento, lo que demuestra una buena conservación y mantenimiento del sistema lumínico en general. Sin embargo, no se observa un número equivalente de láminas saturadas, lo que indica una baja actividad de insectos voladores.
+Conclusión
+El estado general de las estaciones lumínicas durante diciembre 2025 es positivo y funcional, con el 100 % de las unidades operativas y una gestión preventiva activa.
+El resultado confirma que el programa inicia el nuevo ciclo con buen nivel de operatividad técnica, evidenciando seguimiento, control y pronta respuesta a las novedades detectadas.
+"""
+        else:
+            analisis_lamparas = 'Aqui va el analisis de las lamparas'  # Valor por defecto
+        
         # Variables del reporte
         report_variables = {
             'fecha_de_elaboracion': fecha_elaboracion,
@@ -559,7 +585,8 @@ OTRAS PLAGAS: No se reportan otras plagas en los controles preventivos del mes."
             'porcentaje_de_realizados': str(porcentaje_realizados),
             'numero_de_bloques': numero_de_bloques,
             'analisis_roedores': analisis_roedores,
-            'analisis_preventivos': analisis_preventivos
+            'analisis_preventivos': analisis_preventivos,
+            'analisis_lamparas': analisis_lamparas
         }
         
         # Log final values for debugging
@@ -599,6 +626,14 @@ OTRAS PLAGAS: No se reportan otras plagas en los controles preventivos del mes."
         else:
             analisis_preventivos = 'Aqui va el analisis de los preventivos'
         
+        # Determinar análisis de lámparas según la sede (para valores por defecto)
+        if sede == 'Medellín':
+            analisis_lamparas = 'Aqui va el analisis de las lamparas Medellín'
+        elif sede == 'Rionegro':
+            analisis_lamparas = 'Aqui va el analisis de las lamparas Rionegro'
+        else:
+            analisis_lamparas = 'Aqui va el analisis de las lamparas'
+        
         # Valores por defecto en caso de error
         default_vars = {
             'fecha_de_elaboracion': datetime.now().strftime('%d/%m/%Y'),
@@ -612,7 +647,8 @@ OTRAS PLAGAS: No se reportan otras plagas en los controles preventivos del mes."
             'porcentaje_de_realizados': '0.0',
             'numero_de_bloques': numero_de_bloques,
             'analisis_roedores': analisis_roedores,
-            'analisis_preventivos': analisis_preventivos
+            'analisis_preventivos': analisis_preventivos,
+            'analisis_lamparas': analisis_lamparas
         }
         logger.info("===== USANDO VALORES POR DEFECTO (ERROR) =====")
         for key, value in default_vars.items():
