@@ -572,6 +572,19 @@ El resultado confirma que el programa inicia el nuevo ciclo con buen nivel de op
         else:
             analisis_lamparas = 'Aqui va el analisis de las lamparas'  # Valor por defecto
         
+        # Determinar análisis de dengue según la sede
+        if sede == 'Medellín':
+            analisis_dengue = """Nuevamente se hace mensual en las zonas comunes, se aplica larvicida en aguas estancadas, motomochila en zonas verdes, se buscan criaderos, se nebuliza afuera de las instalaciones en perímetro externo, se controlan todas las cajas de aguas negras, residuales y sumideros. Control de manholes internos y externos; aplicación de cipermetrinas líquidas y larvicida de manera mensual, Control de encharcamientos, empozamientos naturales en zonas verdes, fuente de agua y pavimento, aplicación de larvicida de manera semanal, Aplicación de insecticida líquido a través de mecanismo espacial de nebulización o motomochila en exteriores de manera mensual. 
+Se evidencia agua estancada por lluvia y sedimento de hojas en bloque 17. Se hace visita el día 28 de diciembre.
+No se evidencian mosquitos transmisores del dengue.
+"""
+        elif sede == 'Rionegro':
+            analisis_dengue = """Nuevamente se hace mensual en las zonas comunes, se aplica larvicida en aguas estancadas, motomochila en zonas verdes, se buscan criaderos, se nebuliza afuera de las instalaciones en perímetro externo, se controlan todas las cajas de aguas negras, residuales y sumideros. Control de manholes internos y externos; aplicación de cipermetrinas líquidas y larvicida de manera mensual, Control de encharcamientos, empozamientos naturales en zonas verdes, fuente de agua y pavimento, aplicación de larvicida de manera semanal, Aplicación de insecticida líquido a través de mecanismo espacial de nebulización o motomochila en exteriores de manera mensual. 
+Se evidencian 6 registros de aguas lluvias en parqueaderos y perímetro externo debido a las lluvias. 
+"""
+        else:
+            analisis_dengue = 'Aqui va el analisis dengue'  # Valor por defecto
+        
         # Variables del reporte
         report_variables = {
             'fecha_de_elaboracion': fecha_elaboracion,
@@ -586,7 +599,8 @@ El resultado confirma que el programa inicia el nuevo ciclo con buen nivel de op
             'numero_de_bloques': numero_de_bloques,
             'analisis_roedores': analisis_roedores,
             'analisis_preventivos': analisis_preventivos,
-            'analisis_lamparas': analisis_lamparas
+            'analisis_lamparas': analisis_lamparas,
+            'analisis_dengue': analisis_dengue
         }
         
         # Log final values for debugging
@@ -634,6 +648,14 @@ El resultado confirma que el programa inicia el nuevo ciclo con buen nivel de op
         else:
             analisis_lamparas = 'Aqui va el analisis de las lamparas'
         
+        # Determinar análisis de dengue según la sede (para valores por defecto)
+        if sede == 'Medellín':
+            analisis_dengue = 'Aqui va el analisis dengue Medellín'
+        elif sede == 'Rionegro':
+            analisis_dengue = 'Aqui va el analisis dengue Rionegro'
+        else:
+            analisis_dengue = 'Aqui va el analisis dengue'
+        
         # Valores por defecto en caso de error
         default_vars = {
             'fecha_de_elaboracion': datetime.now().strftime('%d/%m/%Y'),
@@ -648,7 +670,8 @@ El resultado confirma que el programa inicia el nuevo ciclo con buen nivel de op
             'numero_de_bloques': numero_de_bloques,
             'analisis_roedores': analisis_roedores,
             'analisis_preventivos': analisis_preventivos,
-            'analisis_lamparas': analisis_lamparas
+            'analisis_lamparas': analisis_lamparas,
+            'analisis_dengue': analisis_dengue
         }
         logger.info("===== USANDO VALORES POR DEFECTO (ERROR) =====")
         for key, value in default_vars.items():
