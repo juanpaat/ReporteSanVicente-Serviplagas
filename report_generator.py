@@ -505,6 +505,14 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
                 print(traceback.format_exc())
                 # Usar valores por defecto
         
+        # Determinar descripción de áreas según la sede
+        if sede == 'Medellín':
+            numero_de_bloques = 'los 17 bloques'
+        elif sede == 'Rionegro':
+            numero_de_bloques = 'las 4 torres'
+        else:
+            numero_de_bloques = 'las áreas'  # Valor por defecto
+        
         # Variables del reporte
         report_variables = {
             'fecha_de_elaboracion': fecha_elaboracion,
@@ -515,7 +523,8 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
             'mes_de_analisis': mes_analisis,
             'ano_de_analisis': str(ano_analisis),
             'areas_controladas': areas_controladas,
-            'porcentaje_de_realizados': str(porcentaje_realizados)
+            'porcentaje_de_realizados': str(porcentaje_realizados),
+            'numero_de_bloques': numero_de_bloques
         }
         
         # Log final values for debugging
@@ -530,6 +539,15 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
         logger.error(f"Error calculando variables del reporte: {e}")
         import traceback
         print(traceback.format_exc())
+        
+        # Determinar descripción de áreas según la sede (para valores por defecto)
+        if sede == 'Medellín':
+            numero_de_bloques = 'los 17 bloques'
+        elif sede == 'Rionegro':
+            numero_de_bloques = 'las 4 torres'
+        else:
+            numero_de_bloques = 'las áreas'
+        
         # Valores por defecto en caso de error
         default_vars = {
             'fecha_de_elaboracion': datetime.now().strftime('%d/%m/%Y'),
@@ -540,7 +558,8 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
             'mes_de_analisis': 'No disponible',
             'ano_de_analisis': str(datetime.now().year),
             'areas_controladas': 'Error al obtener áreas controladas',
-            'porcentaje_de_realizados': '0.0'
+            'porcentaje_de_realizados': '0.0',
+            'numero_de_bloques': numero_de_bloques
         }
         logger.info("===== USANDO VALORES POR DEFECTO (ERROR) =====")
         for key, value in default_vars.items():
