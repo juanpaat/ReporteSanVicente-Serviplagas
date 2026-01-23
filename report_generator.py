@@ -515,19 +515,36 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
         
         # Determinar análisis de roedores según la sede
         if sede == 'Medellín':
-            analisis_roedores = """ -	Primera visita 13 de diciembre: bioindicador, deterioro, estación desaparecida y consumo. Estación # (3 y 35)
- -	Segunda visita 27 de diciembre: bioindicador, deterioro, estación desaparecida y consumo. Estación # (37 y 44)
-En el mes de diciembre se presenta consumo en cuatro estaciones en las dos visitas (3, 35, 27 y 44), se mantiene; en recorridos preventivos y zona común, no se presentan episodios con roedores en correctivos salvo reporte de avistamientos los cuales se ceban, dos roedores atrapados, uno vivo y otro muerto en trampa de medicina física y rehabilitación y dos madrigueras activas. Las estaciones 3, 4 y 5 están bloqueadas por remodelación de área.
-Los días de las visitas se dieron el 13 y el 27 de diciembre.  No se repite el consumo; Se halla bioindicador en 13 estaciones, todas por hormigas consumiendo el cebo; 2, 7, 8, 9, 9, 10, 11, 11, 13, 37, 38, 43 y 43; hormigas de fuego especialmente, rojas y cachonas, consumiendo el cebo en las cajas. La estación # 36 estaba desaparecida, se reemplaza al final del mes. Se presenta deterioro en 2 estaciones por condiciones climatológicas: 30 y 34, estas dos también presentaban deterioro en el mes pasado. 
+            analisis_roedores = """ -	Primera visita 13 de diciembre: bioindicador, deterioro, estación desaparecida y consumo. Estación # (3 y 35).\n
+            
+ -	Segunda visita 27 de diciembre: bioindicador, deterioro, estación desaparecida y consumo. Estación # (37 y 44).\n
+ 
+ En el mes de diciembre se presenta consumo en cuatro estaciones en las dos visitas (3, 35, 27 y 44), se mantiene; en recorridos preventivos y zona común, no se presentan episodios con roedores en correctivos salvo reporte de avistamientos los cuales se ceban, dos roedores atrapados, uno vivo y otro muerto en trampa de medicina física y rehabilitación y dos madrigueras activas. Las estaciones 3, 4 y 5 están bloqueadas por remodelación de área.\n
+ 
+ Los días de las visitas se dieron el 13 y el 27 de diciembre.  No se repite el consumo; Se halla bioindicador en 13 estaciones, todas por hormigas consumiendo el cebo; 2, 7, 8, 9, 9, 10, 11, 11, 13, 37, 38, 43 y 43; hormigas de fuego especialmente, rojas y cachonas, consumiendo el cebo en las cajas. La estación # 36 estaba desaparecida, se reemplaza al final del mes. Se presenta deterioro en 2 estaciones por condiciones climatológicas: 30 y 34, estas dos también presentaban deterioro en el mes pasado. 
 Se realizaron en total 2 visitas a las estaciones portacebos y porta adhesivos del Hospital Universitario para el mes de diciembre.
 """
         elif sede == 'Rionegro':
             analisis_roedores = """Se hacen en total DOS visitas, el 05 y 20 de diciembre; Durante el mes no se presenta consumo en las estaciones. Se evidencia deterioro en 4 cajas, se reduce con relación al mes pasado; en las estaciones 25, 29, 31 y 33 en la primera visita, esto debido a las condiciones atmosféricas del mes. Ni en preventivos, ni en correctivos ocurren hallazgos relacionados con roedores salvo el consumo presentado el cual es esporádico, casi nunca se presenta. 
 
-Se hace limpieza a las 46 estaciones. Todas las estaciones se encuentran en buen estado.
+            Se hace limpieza a las 46 estaciones. Todas las estaciones se encuentran en buen estado.
 """
         else:
             analisis_roedores = 'Aqui va el analisis de los roedores'  # Valor por defecto
+        
+        # Determinar análisis de preventivos según la sede
+        if sede == 'Medellín':
+            analisis_preventivos = 'Aqui va el analisis de los preventivos Medellín'
+        elif sede == 'Rionegro':
+            analisis_preventivos = """En diciembre no se evidencian plagas en los controles preventivos.
+CUCARACHAS: No se hallan cucarachas alemanas, tampoco americanas. 
+
+VOLADORES: Nuevamente no presencia de moscas y zancudos lo cual sigue siento signo positivo y resulta crucial mantener medidas preventivas, como el control de áreas propensas a agua estancada y residuos para evitar futuros brotes.
+ROEDORES: Sin indicadores de ratas ni ratones, la gestión de residuos y alimentos debe continuar siendo optimizada para evitar atraer a estos roedores en el futuro.
+HORMIGAS: El combate semanal nuevamente da sus frutos, pero no se contabiliza en preventivos ya que no se presentaron hormigas al interior del hospital.
+OTRAS PLAGAS: No se reportan otras plagas en los controles preventivos del mes."""
+        else:
+            analisis_preventivos = 'Aqui va el analisis de los preventivos'  # Valor por defecto
         
         # Variables del reporte
         report_variables = {
@@ -541,7 +558,8 @@ Se hace limpieza a las 46 estaciones. Todas las estaciones se encuentran en buen
             'areas_controladas': areas_controladas,
             'porcentaje_de_realizados': str(porcentaje_realizados),
             'numero_de_bloques': numero_de_bloques,
-            'analisis_roedores': analisis_roedores
+            'analisis_roedores': analisis_roedores,
+            'analisis_preventivos': analisis_preventivos
         }
         
         # Log final values for debugging
@@ -573,6 +591,14 @@ Se hace limpieza a las 46 estaciones. Todas las estaciones se encuentran en buen
         else:
             analisis_roedores = 'Aqui va el analisis de los roedores'
         
+        # Determinar análisis de preventivos según la sede (para valores por defecto)
+        if sede == 'Medellín':
+            analisis_preventivos = 'Aqui va el analisis de los preventivos Medellín'
+        elif sede == 'Rionegro':
+            analisis_preventivos = 'Aqui va el analisis de los preventivos Rionegro'
+        else:
+            analisis_preventivos = 'Aqui va el analisis de los preventivos'
+        
         # Valores por defecto en caso de error
         default_vars = {
             'fecha_de_elaboracion': datetime.now().strftime('%d/%m/%Y'),
@@ -585,7 +611,8 @@ Se hace limpieza a las 46 estaciones. Todas las estaciones se encuentran en buen
             'areas_controladas': 'Error al obtener áreas controladas',
             'porcentaje_de_realizados': '0.0',
             'numero_de_bloques': numero_de_bloques,
-            'analisis_roedores': analisis_roedores
+            'analisis_roedores': analisis_roedores,
+            'analisis_preventivos': analisis_preventivos
         }
         logger.info("===== USANDO VALORES POR DEFECTO (ERROR) =====")
         for key, value in default_vars.items():
