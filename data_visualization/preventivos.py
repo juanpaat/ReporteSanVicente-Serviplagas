@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import math
+import numpy as np
 from config import meses_esp
 
 from io import BytesIO
@@ -302,6 +303,198 @@ def generate_total_plagas_trend_plot(df: pd.DataFrame) -> tuple[pd.DataFrame, pl
 
     fig.tight_layout()
     return trend_df, fig
+
+
+def plot_nivel_de_infestación_preventivos(df: pd.DataFrame) -> tuple[pd.DataFrame, plt.Figure]:
+    """
+    Generate a faceted bar plot showing pest infestation levels (Alto, Medio, Bajo) 
+    by species for the most recent month in preventivos data.
+
+    Parameters:
+    ----------
+    df : pd.DataFrame
+        The transformed 'preventivos' DataFrame containing columns:
+        - 'Mes'
+        - 'Código' (order identifier)
+        - 'Cantidad de hallazgos de ...' (various species columns)
+
+    Returns:
+    -------
+    tuple[pd.DataFrame, plt.Figure]
+        Summary DataFrame and the matplotlib figure object
+    """
+    # Find the most recent 'Mes'
+    try:
+        df = df.copy()  # Avoid modifying original DataFrame
+        
+        # Create reverse mapping (Spanish -> English)  
+        meses_eng = {v: k for k, v in meses_esp.items()}
+        
+        # Convert Spanish months to English for parsing
+        def spanish_month_to_datetime(mes_str):
+            for spanish, english in meses_eng.items():
+                if spanish in mes_str:
+                    english_mes = mes_str.replace(spanish, english)
+                    return pd.to_datetime(english_mes, format='%b %Y')
+            return pd.NaT
+        
+        df['Mes_dt'] = df['Mes'].apply(spanish_month_to_datetime)
+
+        # Check if any dates were parsed successfully
+        if df['Mes_dt'].isna().all():
+            print("[Error] No se encontraron fechas válidas en la columna 'Mes'")
+            return pd.DataFrame(), plt.figure()
+
+        latest_month = df.loc[df['Mes_dt'].notna(), 'Mes_dt'].max()
+        # Keep Spanish format for caption
+        latest_month_spanish = df.loc[df['Mes_dt'] == latest_month, 'Mes'].iloc[0]
+        caption = f"Periodo: {latest_month_spanish}"
+
+    except Exception as e:
+        print(f"[Error] Falló al identificar el mes más reciente: {e}")
+        return pd.DataFrame(), plt.figure()
+
+    # Filter to most recent month
+    filtered = df[df['Mes'] == latest_month_spanish].copy()
+
+    valores_de_referencia = {
+        'Cucaracha Americana': {'bajo': 20, 'medio': 50},
+        'Cucaracha Alemana': {'bajo': 20, 'medio': 50},
+        'Hormigas': {'bajo': 100, 'medio': 200},
+        'Moscas': {'bajo': 5, 'medio': 20},
+        'Mosquitos': {'bajo': 5, 'medio': 15},
+        'Zancudos': {'bajo': 5, 'medio': 15},
+        'Ratón casero': {'bajo': 1, 'medio': 3},
+        'Rata Noruega': {'bajo': 1, 'medio': 3},
+        'Ratón de tejado': {'bajo': 1, 'medio': 3}
+    }
+
+    # Identificar columnas de hallazgos
+    columnas_hallazgos = [col for col in filtered.columns if col.startswith('Cantidad de hallazgos de')]
+    
+    # Función para clasificar un valor
+    def clasificar_valor(valor, umbral_bajo, umbral_medio):
+        if pd.isna(valor) or valor == 0:
+            return 'Sin evidencia'
+        elif valor <= umbral_bajo:
+            return 'Bajo'
+        elif valor <= umbral_medio:
+            return 'Medio'
+        else:
+            return 'Alto'
+        
+    # Clasificar cada columna de hallazgos
+    for col in columnas_hallazgos:
+        # Extraer el nombre de la plaga de la columna
+        nombre_plaga = col.replace('Cantidad de hallazgos de ', '')
+        
+        # Obtener umbrales para esta plaga
+        if nombre_plaga in valores_de_referencia:
+            umbral_bajo = valores_de_referencia[nombre_plaga]['bajo']
+            umbral_medio = valores_de_referencia[nombre_plaga]['medio']
+        else:
+            # Umbrales genéricos si no se encuentra la plaga específica
+            umbral_bajo = 50
+            umbral_medio = 100
+        
+        # Crear columna de clasificación
+        col_clasificacion = f'Clasificación {nombre_plaga}'
+        filtered[col_clasificacion] = filtered[col].apply(
+            lambda x: clasificar_valor(x, umbral_bajo, umbral_medio)
+        )
+
+    # Get classification columns
+    columnas_clasificacion = [col for col in filtered.columns if col.startswith('Clasificación')]
+
+    # Melt the DataFrame to long format for plotting
+    melted_df = filtered.melt(
+        id_vars='Código',
+        value_vars=columnas_clasificacion,
+        var_name='Plaga',
+        value_name='Nivel de Infestación'
+    )
+    
+    # Clean up plaga names (remove "Clasificación " prefix)
+    melted_df['Plaga'] = melted_df['Plaga'].apply(lambda x: x.replace('Clasificación ', ''))
+    
+    # Count occurrences per infestation level and plaga
+    plot_df = melted_df.groupby(['Nivel de Infestación', 'Plaga']).agg({
+        'Código': 'count'
+    }).reset_index()
+    
+    # Define infestation level order (excluding 'Sin evidencia')
+    niveles = ['Alto', 'Medio', 'Bajo']
+    
+    # Filter out 'Sin evidencia' from plot data
+    plot_df = plot_df[plot_df['Nivel de Infestación'] != 'Sin evidencia']
+    
+    # Reindex to include all levels for all plagas
+    idx = pd.MultiIndex.from_product(
+        [niveles, melted_df['Plaga'].unique()],
+        names=['Nivel de Infestación', 'Plaga']
+    )
+    plot_df = plot_df.set_index(['Nivel de Infestación', 'Plaga']).reindex(idx, fill_value=0).reset_index()
+    
+    # Set categorical order for plotting
+    plot_df['Nivel de Infestación'] = pd.Categorical(
+        plot_df['Nivel de Infestación'], 
+        categories=niveles, 
+        ordered=True
+    )
+    
+    # Create summary DataFrame for return (human-readable format)
+    summary_df = plot_df.groupby('Nivel de Infestación')['Código'].sum().reset_index()
+    summary_df.columns = ['Nivel de Infestación', 'Cantidad de Órdenes']
+    
+    # Plot - Create faceted plot
+    sns.set_style("whitegrid")
+    g = sns.FacetGrid(plot_df, col='Plaga', col_wrap=3, height=4, aspect=1.2, sharey=True, sharex=False)
+
+    # Map the barplot
+    g.map_dataframe(
+        sns.barplot, 
+        x='Nivel de Infestación', 
+        y='Código',
+        palette=['#333333', '#666666', '#999999'],
+        edgecolor='black', 
+        linewidth=1,
+        order=niveles
+    )
+
+    # Add value labels on bars
+    def add_labels(data, **kwargs):
+        ax = plt.gca()
+        for i, nivel in enumerate(niveles):
+            subset = data[data['Nivel de Infestación'] == nivel]
+            if not subset.empty:
+                value = subset['Código'].values[0]
+                if value > 0:  # Only show label if value is greater than 0
+                    ax.text(
+                        i, value + 0.3, str(int(value)), 
+                        ha='center', va='bottom', fontsize=9, weight='bold',
+                        bbox=dict(boxstyle='round,pad=0.3', facecolor='white', 
+                                  alpha=0.8, edgecolor='none')
+                    )
+
+    g.map_dataframe(add_labels)
+
+    # Formatting
+    g.set_titles("{col_name}", fontsize=11, weight='bold')
+    g.set_axis_labels("Nivel de Infestación", "Órdenes Preventivas", fontsize=10)
+    g.fig.suptitle(
+        f"Órdenes Preventivas por Nivel de Infestación y Plaga - {latest_month_spanish}", 
+        fontsize=14, weight='bold', y=1.02
+    )
+
+    # Rotate x labels for all subplots
+    for ax in g.axes.flat:
+        ax.tick_params(axis='x', rotation=45, labelsize=9)
+        ax.grid(True, axis='y', alpha=0.3, linestyle='-', linewidth=0.5)
+        ax.set_axisbelow(True)
+
+    plt.tight_layout()
+
+    return summary_df, g.fig
 
 
 
