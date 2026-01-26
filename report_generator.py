@@ -19,7 +19,7 @@ import ssl
 import urllib3
 
 # Importaciones de visualización
-from data_visualization.preventivos import generate_order_area_plot, generate_plagas_timeseries_facet, generate_total_plagas_trend_plot
+from data_visualization.preventivos import generate_order_area_plot, generate_plagas_timeseries_facet, generate_total_plagas_trend_plot, plot_nivel_de_infestación_preventivos
 from data_visualization.roedores import generate_roedores_station_status_plot, plot_tendencia_eliminacion_mensual
 from data_visualization.lamparas import plot_estado_lamparas_por_mes, plot_estado_lamparas_con_leyenda, plot_capturas_especies_por_mes, plot_tendencia_total_capturas
 from data_visualization.correctivos import generate_order_comparison_plot, plot_tendencia_total_eliminacion, plot_nivel_de_infestación, plot_plagas_por_especie_mes
@@ -223,6 +223,12 @@ def add_location_visualizations(informe, df_prev_full, df_roed_full, df_lamp_ful
             df_prev_full,
             'preventivos_3_plot',
             'preventivos_3_tabla'
+        )
+        informe.agregar_resultado_completo(
+            plot_nivel_de_infestación_preventivos, 
+            df_prev_full,
+            'preventivos_4_plot',
+            'preventivos_4_tabla'
         )
     
         # Visualizaciones de roedores
