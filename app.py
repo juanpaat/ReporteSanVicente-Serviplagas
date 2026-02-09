@@ -149,10 +149,10 @@ def data_export_tab():
                     
                     # Filter by date range
                     start_datetime = pd.to_datetime(start_date)
-                    end_datetime = pd.to_datetime(end_date)
-                    
+                    end_datetime = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+
                     df_filtered = df_filtered[
-                        (df_filtered['Fecha_temp'] >= start_datetime) & 
+                        (df_filtered['Fecha_temp'] >= start_datetime) &
                         (df_filtered['Fecha_temp'] <= end_datetime)
                     ]
                     
