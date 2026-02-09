@@ -163,8 +163,8 @@ def process_location_data(prev_data, roed_data, lamp_data, corr_data, location, 
         if start_date and end_date:
             # Convertir fechas a datetime para comparación
             start_datetime = pd.to_datetime(start_date)
-            end_datetime = pd.to_datetime(end_date)
-            
+            end_datetime = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+
             # Filtrar datos por rango de fechas
             if 'Fecha pandas' in df_prev_full.columns:
                 df_prev_full = df_prev_full[
@@ -366,8 +366,8 @@ def calculate_report_variables(prev_data, sede, start_date, end_date):
             # Convertir fechas a datetime
             sede_data.loc[:,'Fecha_temp'] = pd.to_datetime(sede_data['Fecha'], errors='coerce')
             start_datetime = pd.to_datetime(start_date)
-            end_datetime = pd.to_datetime(end_date)
-            
+            end_datetime = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+
             sede_data = sede_data[
                 (sede_data['Fecha_temp'] >= start_datetime) & 
                 (sede_data['Fecha_temp'] <= end_datetime)
