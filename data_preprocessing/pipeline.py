@@ -11,6 +11,7 @@ from .lamp_utils import agregar_columna_lampara, ordenar_columnas_lamparas
 from .prev_utils import ordenar_columnas_prev, agregar_area, renombrar_subareas, agregar_subarea
 from .roed_utils import agregar_columna_num_estacion, ordenar_columnas_roedores, unir_columna_consumido
 from .correc_utils import ordenar_columnas_correc
+from .zonas_com import ordenar_columnas_zonas_comunes, convertir_columnas_a_filas
 
 
 def leer_data(API_URL: str) -> pd.DataFrame:
@@ -398,5 +399,38 @@ def procesar_correctivos(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
    
     return  df, full_df
+
+
+def procesar_zonascomunes(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    # Work with a copy to avoid SettingWithCopyWarning
+    df = df.copy()
+    # Fecha
+    # Agregar columna 'Fecha pandas'
+    df = agregar_nueva_fecha(df, 'Fecha')
+    # Agregar columna 'Mes'
+    df = columna_mes(df, 'Fecha pandas')
+
+    # Técnicos
+    #agregar ceros a todas las columnas que empiezan con 'Técnicos/'
+    df = agregar_ceros_a_columnas(df, r'^Técnicos/')
+    # Agregar columna 'Técnicos'
+    df = crear_columna_combinada(df= df,
+                                column_pattern = r'^Técnicos/',
+                                new_column_name = 'Técnicos',
+                                name_separator = '/',
+                                join_separator = ', ',
+                                empty_value = '')
+
+    # Plagas
+    # agregar ceros a las columnas de evidencia de plagas
+    df = agregar_ceros_a_columnas(df, r'^Evidencia de plagas/')
+
+    # Convertir columnas de plagas a filas (una fila por plaga evidenciada)
+    df = convertir_columnas_a_filas(df)
+
+    # ordenar columnas
+    df , df_full = ordenar_columnas_zonas_comunes(df)
+
+    return df , df_full
 
 
