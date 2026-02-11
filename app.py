@@ -9,7 +9,10 @@ from datetime import datetime, timedelta
 import traceback
 from io import BytesIO
 from report_generator import load_api_data, generate_report_for_locations, get_data_summary
-from data_preprocessing.pipeline import procesar_preventivos, procesar_lamparas, procesar_roedores, procesar_correctivos
+from data_preprocessing.pipeline import procesar_preventivos, procesar_lamparas, procesar_roedores, procesar_correctivos, procesar_zonascomunes, leer_data
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 # Configuración de página
@@ -184,8 +187,25 @@ def data_export_tab():
                 df_lamp, df_lamp_full = procesar_lamparas(lamp_filtered)
 
                 status_text.text("🔄 Procesando datos de correctivos...")
-                progress_bar.progress(70)
+                progress_bar.progress(60)
                 df_corr, df_corr_full = procesar_correctivos(corr_filtered)
+
+                status_text.text("🔄 Procesando datos de zonas comunes...")
+                progress_bar.progress(70)
+                # Cargar zonas comunes desde su propia API
+                import os
+                zcomun_api = os.getenv("zcomun_API")
+                if not zcomun_api:
+                    try:
+                        zcomun_api = st.secrets["zcomun_API"]
+                    except Exception:
+                        zcomun_api = None
+                if zcomun_api:
+                    zcomun_raw = leer_data(zcomun_api)
+                    zcomun_filtered = filter_by_date_range(zcomun_raw, export_start_date, export_end_date)
+                    df_zcomun, _ = procesar_zonascomunes(zcomun_filtered)
+                else:
+                    df_zcomun = pd.DataFrame()
                 
                 status_text.text("🔄 Filtrando datos por sede...")
                 progress_bar.progress(80)
@@ -221,7 +241,15 @@ def data_export_tab():
                     corr_rionegro = df_corr[df_corr['Sede'] == 'Rionegro'].copy()
                 else:
                     corr_medellin = df_corr.copy()
-                    corr_rionegro = pd.DataFrame()                    
+                    corr_rionegro = pd.DataFrame()
+
+                # Zonas comunes
+                if len(df_zcomun) > 0 and 'Sede' in df_zcomun.columns:
+                    zcomun_medellin = df_zcomun[df_zcomun['Sede'] == 'Medellín'].copy()
+                    zcomun_rionegro = df_zcomun[df_zcomun['Sede'] == 'Rionegro'].copy()
+                else:
+                    zcomun_medellin = df_zcomun.copy()
+                    zcomun_rionegro = pd.DataFrame()
                 
                 status_text.text("✅ ¡Procesamiento completado!")
                 progress_bar.progress(100)
@@ -243,6 +271,10 @@ def data_export_tab():
                     'correctivos': {
                         'medellin': corr_medellin,
                         'rionegro': corr_rionegro
+                    },
+                    'zonas_comunes': {
+                        'medellin': zcomun_medellin,
+                        'rionegro': zcomun_rionegro
                     },
                     'date_range': (export_start_date, export_end_date)
                 }
@@ -390,6 +422,36 @@ def data_export_tab():
                     key="corr_rio"
                 )
         
+        # Zonas comunes section
+        st.markdown("#### 🌳 Zonas Comunes")
+        col_zc1, col_zc2 = st.columns(2)
+        
+        with col_zc1:
+            st.metric("🏢 Medellín", len(data['zonas_comunes']['medellin']))
+            if len(data['zonas_comunes']['medellin']) > 0:
+                excel_zc_med = convert_df_to_excel(data['zonas_comunes']['medellin'], "ZonasComunes_Medellin")
+                st.download_button(
+                    label="⬇️ Descargar Zonas Comunes Medellín",
+                    data=excel_zc_med,
+                    file_name=f"ZonasComunes_Medellin_{date_range_str}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="zc_med"
+                )
+        
+        with col_zc2:
+            st.metric("🏢 Rionegro", len(data['zonas_comunes']['rionegro']))
+            if len(data['zonas_comunes']['rionegro']) > 0:
+                excel_zc_rio = convert_df_to_excel(data['zonas_comunes']['rionegro'], "ZonasComunes_Rionegro")
+                st.download_button(
+                    label="⬇️ Descargar Zonas Comunes Rionegro",
+                    data=excel_zc_rio,
+                    file_name=f"ZonasComunes_Rionegro_{date_range_str}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="zc_rio"
+                )
+        
         # Combined download
         st.markdown("---")
         st.markdown("### 📦 Descarga Combinada")
@@ -420,6 +482,12 @@ def data_export_tab():
                 data['correctivos']['medellin'].to_excel(writer, index=False, sheet_name='Correctivos_Medellin')
             if len(data['correctivos']['rionegro']) > 0:
                 data['correctivos']['rionegro'].to_excel(writer, index=False, sheet_name='Correctivos_Rionegro')
+            
+            # Zonas comunes sheets
+            if len(data['zonas_comunes']['medellin']) > 0:
+                data['zonas_comunes']['medellin'].to_excel(writer, index=False, sheet_name='ZonasComunes_Medellin')
+            if len(data['zonas_comunes']['rionegro']) > 0:
+                data['zonas_comunes']['rionegro'].to_excel(writer, index=False, sheet_name='ZonasComunes_Rionegro')
         combined_output.seek(0)
         
         st.download_button(
@@ -459,6 +527,12 @@ def data_export_tab():
                 st.dataframe(data['correctivos']['medellin'].head(5), use_container_width=True)
             else:
                 st.info("No hay datos de correctivos para Medellín en el rango seleccionado")
+            
+            st.markdown("**🌳 Zonas Comunes - Medellín**")
+            if len(data['zonas_comunes']['medellin']) > 0:
+                st.dataframe(data['zonas_comunes']['medellin'].head(5), use_container_width=True)
+            else:
+                st.info("No hay datos de zonas comunes para Medellín en el rango seleccionado")
         
         with tab_rio:
             st.markdown("**🛡️ Preventivos - Rionegro**")
@@ -484,6 +558,12 @@ def data_export_tab():
                 st.dataframe(data['correctivos']['rionegro'].head(5), use_container_width=True)
             else:
                 st.info("No hay datos de correctivos para Rionegro en el rango seleccionado")
+            
+            st.markdown("**🌳 Zonas Comunes - Rionegro**")
+            if len(data['zonas_comunes']['rionegro']) > 0:
+                st.dataframe(data['zonas_comunes']['rionegro'].head(5), use_container_width=True)
+            else:
+                st.info("No hay datos de zonas comunes para Rionegro en el rango seleccionado")
 def report_generation_tab():
     """Original Report Generation Tab functionality"""
     # Configuración de barra lateral - PASO 1: Configuración de Parámetros
