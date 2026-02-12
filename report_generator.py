@@ -14,7 +14,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Importaciones de procesamiento de datos
-from data_preprocessing.pipeline import leer_data, procesar_preventivos, procesar_lamparas, procesar_roedores, procesar_correctivos
+from data_preprocessing.pipeline import leer_data, procesar_preventivos, procesar_lamparas, procesar_roedores, procesar_correctivos, procesar_zonascomunes
 import ssl
 import urllib3
 
@@ -25,6 +25,8 @@ from data_visualization.lamparas import plot_estado_lamparas_por_mes, plot_estad
 from data_visualization.correctivos import generate_order_comparison_plot, plot_tendencia_total_eliminacion, plot_nivel_de_infestación, plot_plagas_por_especie_mes
 # Motor de reportes
 from Engine.engine import InformeHospitalGenerator
+# Analisis LLM
+from llm_analysis import generar_analisis_zonas_comunes
 
 # Cargar variables de entorno
 load_dotenv()
@@ -717,7 +719,54 @@ def generate_report_for_locations(locations, start_date=None, end_date=None, tem
         # Agregar variables del reporte al contexto
         for key, value in report_data.items():
             informe.context[key] = value
-        
+
+        # Cargar y procesar datos de zonas comunes para el analisis LLM
+        zcomun_api = os.getenv("zcomun_API")
+        if not zcomun_api:
+            try:
+                import streamlit as st
+                if hasattr(st, 'secrets'):
+                    zcomun_api = st.secrets.get("zcomun_API")
+            except (ImportError, AttributeError):
+                pass
+
+        if zcomun_api:
+            try:
+                zcomun_raw = leer_data(zcomun_api)
+                # Filtrar por rango de fechas
+                if start_date and end_date and 'Fecha' in zcomun_raw.columns:
+                    zcomun_raw_copy = zcomun_raw.copy()
+                    zcomun_raw_copy['Fecha_temp'] = pd.to_datetime(zcomun_raw_copy['Fecha'], errors='coerce')
+                    start_dt = pd.to_datetime(start_date)
+                    end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+                    zcomun_raw_copy = zcomun_raw_copy[
+                        (zcomun_raw_copy['Fecha_temp'] >= start_dt) &
+                        (zcomun_raw_copy['Fecha_temp'] <= end_dt)
+                    ]
+                    zcomun_raw_copy = zcomun_raw_copy.drop('Fecha_temp', axis=1)
+                    zcomun_raw = zcomun_raw_copy
+
+                df_zcomun, _ = procesar_zonascomunes(zcomun_raw)
+
+                # Filtrar por sede
+                sede = locations[0]
+                if len(df_zcomun) > 0 and 'Sede' in df_zcomun.columns:
+                    df_zcomun_sede = df_zcomun[df_zcomun['Sede'] == sede].copy()
+                else:
+                    df_zcomun_sede = df_zcomun.copy()
+
+                # Generar analisis LLM
+                mes_analisis = report_data.get('mes_de_analisis', 'No disponible')
+                analisis_zonas_comunes = generar_analisis_zonas_comunes(df_zcomun_sede, sede, mes_analisis)
+                informe.context['zonas_comunes'] = analisis_zonas_comunes
+                logger.info(f"Analisis de zonas comunes agregado al reporte ({len(analisis_zonas_comunes)} caracteres)")
+            except Exception as e:
+                logger.error(f"Error procesando zonas comunes para LLM: {e}")
+                informe.context['zonas_comunes'] = f"No se pudo generar el analisis de zonas comunes: {e}"
+        else:
+            logger.warning("zcomun_API no configurada, omitiendo analisis de zonas comunes")
+            informe.context['zonas_comunes'] = "API de zonas comunes no configurada."
+
         # Procesar cada ubicación
         for location in locations:
             # Procesar datos de ubicación
