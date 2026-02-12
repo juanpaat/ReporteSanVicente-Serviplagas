@@ -10,3 +10,4 @@ requests>=2.31.0
 urllib3>=2.0.0
 setuptools<81
 xlsxwriter>=3.0.0
+openai>=1.0.0
